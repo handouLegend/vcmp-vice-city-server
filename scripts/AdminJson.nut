@@ -46,17 +46,13 @@ function SaveAdmins()
 function IsIp(s)
 {
     if (s == null) return false;
-    local parts = s.split(".");
-    if (parts.len() != 4) return false;
-    for (local i = 0; i < parts.len(); i++) {
-        local p = parts[i];
-        if (p.len() == 0) return false;
-        for (local j = 0; j < p.len(); j++) {
-            local c = p[j];
-            if (c < 48 || c > 57) return false;
-        }
+    local dots = 0;
+    for (local i = 0; i < s.len(); ++i) {
+        local c = s[i];
+        if (c == 46) dots++;
+        else if (c < 48 || c > 57) return false;
     }
-    return true;
+    return dots == 3;
 }
 
 // ---------- resolve input into { ip, player } ----------
@@ -87,18 +83,19 @@ function HandleAddAdmin(player, text)
     }
     local level = 1;
     local arg = text;
-    local parts = text.split(" ");
-    if (parts.len() >= 2) {
-        try {
-            local n = parts[parts.len() - 1].tointeger();
-            if (n == 1 || n == 2) {
-                level = n;
-                arg = parts[0];
-                if (parts.len() >= 3) {
-                    arg = arg + " " + parts[1];
-                }
-            }
-        } catch (e) {}
+    // this Squirrel has no string.split(); parse "name [level]" via find/slice
+    local sp = -1;
+    local pos = text.find(" ");
+    while (pos != null) {
+        sp = pos;
+        pos = text.find(" ", pos + 1);
+    }
+    if (sp >= 0) {
+        local tail = text.slice(sp + 1);
+        if (tail == "1" || tail == "2") {
+            level = tail.tointeger();
+            arg = text.slice(0, sp);
+        }
     }
     if (level != 1 && level != 2) {
         MessagePlayer("[#ff0000]level must be 1 or 2 (default 1)", player);
