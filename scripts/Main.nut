@@ -345,7 +345,7 @@ function onPlayerCommand(player,cmd,text)
             if("tempVeh" in state[player.ID] && state[player.ID].tempVeh != null){
                 state[player.ID].tempVeh.Delete();
             }
-            state[player.ID].tempVeh<-CreateVehicle(text.tointeger(),player.Pos,140.020,68,39);
+            state[player.ID].tempVeh<-CreateVehicle(text.tointeger(),player.World,player.Pos.x+3,player.Pos.y+3,player.Pos.z+1,player.Angle,68,39);
         }
 	}else if((cmd=="admin" || cmd=="Admin") && state[player.ID].AdminLevel>=1){
         MessagePlayer("[#00ff00]you AdminLevel is[#ffff00]"+state[player.ID].AdminLevel,player);
