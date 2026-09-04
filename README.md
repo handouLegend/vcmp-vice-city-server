@@ -1,6 +1,6 @@
 # VC-MP Vice City Server Scripts
 
-罪恶都市gta吧社区的 Vice City Multiplayer (VC:MP) 0.4 服务器脚本。
+罪恶都市gta吧的 Vice City Multiplayer (VC:MP) 0.4 服务器脚本。
 
 ## 环境要求
 
@@ -10,8 +10,8 @@
 
 ## 安装
 
-1. 将脚本放到服务器对应位置：
-   - `scripts/Main.nut` —— 游戏模式（`server.cfg` 的 `sqgamemode` 指向它）
+1. 对应位置：
+   - `scripts/Main.nut` —— 主脚本
    - `scripts/Vehicles.nut`、`scripts/AdminJson.nut` —— 脚本目录
    - `admins.json` —— 服务器根目录（配置）
    - `plugins/` —— 需要的插件 dll
@@ -23,7 +23,7 @@
 
 ## 配置
 
-### 管理员（`admins.json`，放服务器根目录）
+### 管理员（`admins.json`，服务器根目录）
 
 ```json
 {
@@ -32,7 +32,7 @@
 ```
 
 - 服务器启动/重载时读取；
-- `admins.json.example` 是示例（不含真实 IP）。
+- `admins.json.example` 示例（不含真实 IP）。
 
 ## 插件下载
 
@@ -46,7 +46,6 @@
 
 ## 说明
 
-- 本脚本最初从 VC-MP 论坛下载并修改，适用于 VC:MP 0.4。
 - 部分功能依赖服务器**已加载的插件**；缺少插件时相关功能可能不可用。
 
 ## 许可证
