@@ -117,9 +117,9 @@ function HandleAddAdmin(player, text)
         if (r.player.ID in state) {
             state[r.player.ID].AdminLevel = level;
         }
-        MessagePlayer("[#00ff00]added admin " + r.player.Name + " (" + ip + ") level " + level, player);
+        Message("[#00ff00]added admin " + r.player.Name + " (" + ip + ") level " + level);
     } else {
-        MessagePlayer("[#00ff00]added admin IP: " + ip + " level " + level, player);
+        Message("[#00ff00]added admin IP: " + ip + " level " + level);
     }
 }
 
@@ -150,9 +150,9 @@ function HandleDelAdmin(player, text)
         if (r.player.ID in state) {
             state[r.player.ID].AdminLevel = 0;
         }
-        MessagePlayer("[#00ff00]removed admin " + r.player.Name + " (" + ip + ")", player);
+        Message("[#00ff00]removed admin " + r.player.Name + " (" + ip + ")");
     } else {
-        MessagePlayer("[#00ff00]removed admin IP: " + ip, player);
+        Message("[#00ff00]removed admin IP: " + ip);
     }
 }
 
