@@ -219,14 +219,15 @@ function onPlayerJoin( player )
 {
     Announce("Welcome ~r~ to  this ~p~ beta ~t~ server ~y~ have fun!", player, 1);
     player.Colour=RGB(tcR[player.Team],tcG[player.Team],tcB[player.Team]);
-    if(admin.find(player.IP)>=0){
-        player.Admin=true;
-    }
     if(!(player.ID in state)){
         state[player.ID]<-{};
     }
+    state[player.ID].AdminLevel<-0;
     state[player.ID].CDdiepos<-false;
     state[player.ID].diepos<-{};
+    if(player.IP in admin){
+        state[player.ID].AdminLevel = admin[player.IP];
+    }
 }
 function onPlayerCommand(player,cmd,text)
 {
@@ -250,7 +251,7 @@ function onPlayerCommand(player,cmd,text)
             player.Armour = 100;
             ClientMessage("you have been armored", player, 0, 255, 0);
         }
-    }else if(cmd=="money" && player.Admin){
+    }else if(cmd=="money" && state[player.ID].AdminLevel>=1){
         player.GiveMoney(500);
     }else if(cmd=="skin"){
         if(!text){
@@ -306,7 +307,7 @@ function onPlayerCommand(player,cmd,text)
             }
             
         }  
-    }else if(cmd=="team" && player.Admin){
+    }else if(cmd=="team" && state[player.ID].AdminLevel>=1){
         if(!text){
             MessagePlayer( "your team is " + teamColor[player.Team] + ". type /team [team color] to change it", player );
         }else{
@@ -332,7 +333,7 @@ function onPlayerCommand(player,cmd,text)
         }
         if(notcar.find(text)==0 || notcar.find(text)>=1){
             MessagePlayer("[#ff0000]not this car!",player);
-            if(player.ID=1145)
+            if(player.ID==1145)
             {
                 player.World=player.UniqueWorld;
                 CreateExplosion( player.World,6,player.Pos,player.ID,true );
@@ -346,9 +347,9 @@ function onPlayerCommand(player,cmd,text)
             }
             state[player.ID].tempVeh<-CreateVehicle(text.tointeger(),player.Pos,140.020,68,39);
         }
-	}else if((cmd=="admin" || cmd=="Admin") && player.Admin){
-        MessagePlayer("[#00ff00]you are [#ffd200]admin",player);
-    }else if(cmd=="IP" && player.Admin){
+	}else if((cmd=="admin" || cmd=="Admin") && state[player.ID].AdminLevel>=1){
+        MessagePlayer("[#00ff00]you AdminLevel is[#ffff00]"+state[player.ID].AdminLevel,player);
+    }else if(cmd=="IP" && state[player.ID].AdminLevel>=1){
         local ply=FindPlayer(text);
         if(ply){
             MessagePlayer("Player's IP:"+ply.IP,player);
@@ -356,7 +357,7 @@ function onPlayerCommand(player,cmd,text)
         }else{
             ClientMessage("Player not find",player,255,0,0);
         }
-    }else if(cmd=="reload" && player.Admin){
+    }else if(cmd=="reload" && state[player.ID].AdminLevel>=3){
         // 重载前清理所有玩家 /car 临时车：ReloadScripts 会重置脚本状态（state 表清空），
         // 不先删掉的话这些车会变成"孤儿"残留在地图上，之后无法再被脚本删除，只能人工打爆
         foreach (pid, st in state) {
@@ -384,7 +385,7 @@ function onPlayerCommand(player,cmd,text)
             CreateExplosion( player.World,6,player.Pos,player.ID,true );
             player.World=0;
         }else{
-            if(player.Admin){
+            if(state[player.ID].AdminLevel>=3){
                 if(text == "@e"){
                     for(local i=0;i<=GetPlayers();i++)
                     {
@@ -404,9 +405,9 @@ function onPlayerCommand(player,cmd,text)
                 }
             }
         }
-    }else if(cmd=="addadmin" && player.Admin){
+    }else if(cmd=="addadmin" && state[player.ID].AdminLevel>=3){
         HandleAddAdmin(player, text);
-    }else if(cmd=="deladmin" && player.Admin){
+    }else if(cmd=="deladmin" && state[player.ID].AdminLevel>=3){
         HandleDelAdmin(player, text);
     }else{
         ClientMessage("The command "+cmd+" is not available, please type /help for a list of commands", player, 255, 0, 0);
@@ -432,7 +433,7 @@ function onVehicleExplode( vehicle )
 function onPlayerChat( player, message )
 {
     print(player.Name+":"+message);
-    if(player.Admin){
+    if(state[player.ID].AdminLevel>=1){
         local plytc=GetTeamColor(player)
         Message("[#ffd200][Admin]"+plytc+player.Name+"[#ffffff]:"+message);
     }else{
