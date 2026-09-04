@@ -1,28 +1,16 @@
-# ============ 运行时二进制/插件（不提交，还原即可运行）============
 server64.exe
 plugins/*.dll
 *.exe
-
-# ============ 日志 / 缓存 ============
 announce.log
 server_log.txt
 *.log
-
-# ============ 私密配置（含真实管理员 IP，绝不提交）============
 admins.json
 .dshw-usage.json
 .dshw-size.json
-
-# ============ server.cfg ============
-# 如果想分享配置文件，请复制一份 server.cfg.example 并去掉密码/隐私信息后提交
 server.cfg
-
-# ============ 备份 / 本地临时 ============
 Vehicles.nut.bak
 dsh-whale-widget-*.zip
 _whalestage*/
 _whale.tgz
-
-# ============ DSH / 系统临时 ============
 .DS_Store
 Thumbs.db
