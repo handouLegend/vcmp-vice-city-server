@@ -23,7 +23,7 @@ local teamColor = ["red", "blue", "green", "yellow","white", "black" ];
 local tcR=[255,0,0,255,255,0];
 local tcG=[0,0,255,255,255,0];
 local tcB=[0,255,0,0,255,0];
-local wepammo= [10,10,10,10,10,100,49,100,20,70,500,600,500,350,300,300,10,10,10,100,20,50];
+local wepammo= [10,10,10,10,10,100,49,100,20,70,500,600,500,350,300,300,10,10,10,100,20,10];
 function onServerStart()
 {
     SetMaxPlayers(16);
