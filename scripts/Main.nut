@@ -40,7 +40,7 @@ function onServerStart()
     // 脚本重载（/reload）只会重跑 onScriptLoad，不会重复刷车
     print("[Main] onServerStart: loading static vehicles...");
     try {
-        dofile("./Vehicles.nut");
+        dofile("./scripts/Vehicles.nut");
         LoadVehicles();
         print("[Main] static vehicles loaded OK");
     } catch (e) {
@@ -199,7 +199,7 @@ function onScriptLoad()
     // 加载管理员 JSON：onScriptLoad 在启动和每次 /reload 时都执行，
     // 手动改 admins.json 后 /reload 即可生效（无需重启服务器）
     try {
-        dofile("AdminJson.nut");
+        dofile("./scripts/AdminJson.nut");
         LoadAdmins();
     } catch (e) {
         print("[Main] ERROR loading AdminJson.nut: " + e);

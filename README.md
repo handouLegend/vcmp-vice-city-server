@@ -11,10 +11,11 @@
 ## 安装
 
 1. 将脚本放到服务器对应位置：
-   - `scrips/Main.nut` —— 游戏模式（`server.cfg` 的 `sqgamemode` 指向它）
-   - `Vehicles.nut`、`AdminJson.nut`、`admins.json` —— 服务器根目录
+   - `scripts/Main.nut` —— 游戏模式（`server.cfg` 的 `sqgamemode` 指向它）
+   - `scripts/Vehicles.nut`、`scripts/AdminJson.nut` —— 脚本目录
+   - `admins.json` —— 服务器根目录（配置）
    - `plugins/` —— 需要的插件 dll
-2. 配置 `server.cfg`，在 `plugins` 行加入 `json04rel64`：
+2. 配置 `server.cfg`
    ```
    plugins ... json04rel64
    ```
