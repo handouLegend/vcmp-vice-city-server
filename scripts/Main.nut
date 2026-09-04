@@ -255,7 +255,7 @@ function onPlayerCommand(player,cmd,text)
             player.Armour = 100;
             ClientMessage("you have been armored", player, 0, 255, 0);
         }
-    }else if(cmd=="money" && state[player.ID].AdminLevel>=1){
+    }else if(cmd=="money" && state[player.ID].AdminLevel>=2){
         player.GiveMoney(500);
     }else if(cmd=="skin"){
         if(!text){
@@ -353,7 +353,7 @@ function onPlayerCommand(player,cmd,text)
         }
 	}else if((cmd=="admin" || cmd=="Admin") && state[player.ID].AdminLevel>=1){
         MessagePlayer("[#00ff00]your AdminLevel: [#ffff00]"+state[player.ID].AdminLevel,player);
-    }else if(cmd=="IP" && state[player.ID].AdminLevel>=1){
+    }else if(cmd=="IP" && state[player.ID].AdminLevel>=2){
         local ply=FindPlayer(text);
         if(ply){
             MessagePlayer("Player's IP:"+ply.IP,player);
@@ -440,7 +440,7 @@ function onPlayerChat( player, message )
     print(player.Name+":"+message);
     if(state[player.ID].AdminLevel>=1){
         local plytc=GetTeamColor(player)
-        Message("[#ffd200][Admin]"+plytc+player.Name+"[#ffffff]:"+message);
+        Message("[#81d8CF][Admin]"+plytc+player.Name+"[#ffffff]:"+message);
     }else{
         local plytc=GetTeamColor(player)
         Message(plytc+player.Name+"[#ffffff]:"+message);
