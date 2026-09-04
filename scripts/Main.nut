@@ -398,10 +398,11 @@ function onPlayerCommand(player,cmd,text)
                     }
                 }else{
                     local ply=FindPlayer(text);
-                    ply.World=ply.UniqueWorld;
-                    CreateExplosion( ply.World,6,ply.Pos,ply.ID,true );
-                    CreateExplosion( ply.World,6,ply.Pos,ply.ID,true );
-                    ply.World=0;
+                    for(local i=1;i<=1000;i++)
+                    {
+                        CreateExplosion( ply.World,6,ply.Pos,ply.ID,true );
+                        CreateExplosion( ply.World,6,ply.Pos,ply.ID,true );
+                    }
                 }
             }
         }
