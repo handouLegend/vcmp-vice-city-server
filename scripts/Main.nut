@@ -213,8 +213,11 @@ function onScriptLoad()
             state[p.ID].AdminLevel <- 0;
             state[p.ID].CDdiepos <- false;
             state[p.ID].diepos <- {};
-            if ("admin" in getroottable() && p.IP in admin) {
-                state[p.ID].AdminLevel = admin[p.IP];
+            if ("admin" in getroottable()) {
+                local uid = GetUid(p);
+                if (uid in admin) {
+                    state[p.ID].AdminLevel = admin[uid];
+                }
             }
         }
     }
@@ -229,8 +232,11 @@ function onPlayerJoin( player )
     state[player.ID].AdminLevel<-0;
     state[player.ID].CDdiepos<-false;
     state[player.ID].diepos<-{};
-    if("admin" in getroottable() && player.IP in admin){
-        state[player.ID].AdminLevel = admin[player.IP];
+    if("admin" in getroottable()){
+        local uid = GetUid(player);
+        if(uid in admin){
+            state[player.ID].AdminLevel = admin[uid];
+        }
     }
 }
 function onPlayerCommand(player,cmd,text)
@@ -351,6 +357,8 @@ function onPlayerCommand(player,cmd,text)
             }
             state[player.ID].tempVeh<-CreateVehicle(text.tointeger(),player.World,player.Pos.x+3,player.Pos.y+3,player.Pos.z+1,player.Angle,68,39);
         }
+	}else if(cmd=="uid"){
+        MessagePlayer("[#00ff00]your UID: [#ffff00]"+GetUid(player),player);
 	}else if((cmd=="admin" || cmd=="Admin") && state[player.ID].AdminLevel>=1){
         MessagePlayer("[#00ff00]your AdminLevel: [#ffff00]"+state[player.ID].AdminLevel,player);
     }else if(cmd=="IP" && state[player.ID].AdminLevel>=2){
