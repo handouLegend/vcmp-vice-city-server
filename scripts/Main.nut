@@ -46,6 +46,8 @@ function onServerStart()
     } catch (e) {
         print("[Main] ERROR loading Vehicles.nut: " + e);
     }
+    dofile("./scripts/Database.nut");
+    loadDB();
 }
 function weapons(weps)
 {
@@ -184,8 +186,6 @@ function GetTeamColor(player) {
     local hex=format("%02X%02X%02X",R,G,B);
     return "[#"+ hex +"]";
 }
-local Weplist1 = ["fist","Brass Knuckles","Screwdriver","Golfclub","Nitestick","Knife","Baseball bat","Hammer","Meat Cleaver","Machete","Katana","Chainsaw","Grenades","Remote Grenades","Teargas","Molotov Cocktails"]
-local Weplist2 = ["rocketlauncher","Colt .45","Python","Shotgun","Spaz Shotgun","Stubby Shotgun","Tec 9","Uzi","Ingram","MP5","M4","Ruger","Sniper Rifle","Laser Sniper","Rocket Launcher","Flame Thrower","M60","Minigun"];
 function onScriptLoad()
 {
 	enter <- BindKey( true, 0x0D, 0, 0 );
@@ -238,6 +238,7 @@ function onPlayerJoin( player )
             state[player.ID].AdminLevel = admin[uid];
         }
     }
+    queryDB(player);
 }
 function onPlayerCommand(player,cmd,text)
 {
@@ -290,11 +291,7 @@ function onPlayerCommand(player,cmd,text)
                     }else
                     {
                     player.GiveWeapon(wepID,wepammo[wepID-12]);
-                    if(wepID<=15){
-                        MessagePlayer( "[#00ff00]weapon:[#ffff00]"+Weplist1[wepID]+"[#00ff00] with[#ffff00] "+wepammo[wepID-12]+"[#00ff00] ammo given, Weapon's ID:[#ffff00]"+wepID, player );
-                    }else{
-                        MessagePlayer( "[#00ff00]weapon:[#ffff00]"+Weplist2[wepID-16]+" [#00ff00]with[#ffff00] "+wepammo[wepID-12]+"[#00ff00] ammo given, Weapon's ID:[#ffff00]"+wepID, player );
-                    }
+                    MessagePlayer( "[#00ff00]weapon:[#ffff00]"+GetWeaponName(wepID)+" [#00ff00]with[#ffff00] "+wepammo[wepID-12]+"[#00ff00] ammo given, Weapon's ID:[#ffff00]"+wepID, player );
                     }
                 }
             }else{
@@ -305,11 +302,7 @@ function onPlayerCommand(player,cmd,text)
                     }else
                     {
                     player.GiveWeapon(wepID,wepammo[wepID-12]);
-                    if(wepID<=15){
-                        MessagePlayer( "[#00ff00]weapon:[#ffff00]"+Weplist1[wepID]+"[#00ff00] with[#ffff00] "+wepammo[wepID-12]+"[#00ff00] ammo given, Weapon's ID:[#ffff00]"+wepID, player );
-                    }else{
-                        MessagePlayer( "[#00ff00]weapon:[#ffff00]"+Weplist2[wepID-16]+"[#00ff00] with[#ffff00] "+wepammo[wepID-12]+"[#00ff00] ammo given, Weapon's ID:[#ffff00]"+wepID, player );
-                    }
+                    MessagePlayer( "[#00ff00]weapon:[#ffff00]"+GetWeaponName(wepID)+" [#00ff00]with[#ffff00] "+wepammo[wepID-12]+"[#00ff00] ammo given, Weapon's ID:[#ffff00]"+wepID, player );
                     }
                 }else{
                     MessagePlayer( "[#ff0000]weapon not found", player );
@@ -460,6 +453,7 @@ function onPlayerPart(player,reason){
             state[player.ID].tempVeh.Delete();
         }
     }
+    saveDB(player);
 }
 function onPlayerKill( killer, player, reason, bodypart )
 {
