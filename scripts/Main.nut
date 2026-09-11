@@ -420,7 +420,9 @@ function onPlayerCommand(player,cmd,text)
             local ply=FindPlayer(text);
             if(ply!=null)
             {
-                player.Pos=ply.Pos.x,ply.Pos.y,-32767;
+                player.Pos.x=ply.Pos.x;
+                player.Pos.y=ply.Pos.y;
+                player.Pos.z=-32767;
             }else
             {
                 MessagePlayer("[#ff0000]ERROR:player not found",player);
