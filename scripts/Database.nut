@@ -12,7 +12,7 @@ function loadDB()
     db=ConnectSQL("serverDB.db");
     if(db!=null)
     {
-        QuerySQL(db, "CREATE TABLE IF NOT EXISTS players (name TEXT PRIMARY KEY, UID TEXT, money INTEGER, wantedLevel INTEGER)");
+        QuerySQL(db, "CREATE TABLE IF NOT EXISTS players (UID TEXT, name TEXT, money INTEGER, wantedLevel INTEGER, PRIMARY KEY (UID, name))");
     }else
     {
         print("[DB] ConnectSQL failed");
@@ -22,7 +22,13 @@ function queryDB(player)
 {
     local plyUID=player.UniqueID;
     local name=player.Name;
-    local q=QuerySQL(db,"SELECT name, UID, money, wantedLevel FROM players");
+    local q=QuerySQL(db,"SELECT UID, name, money, wantedLevel FROM players");
+    if(q==null)
+    {
+        db=ConnectSQL("serverDB.db");
+        QuerySQL(db, "CREATE TABLE IF NOT EXISTS players (UID TEXT, name TEXT, money INTEGER, wantedLevel INTEGER, PRIMARY KEY (UID, name))");
+        q=QuerySQL(db,"SELECT UID, name, money, wantedLevel FROM players");
+    }
     if(q==null)
     {
         print("[DB] query failed");
@@ -31,27 +37,17 @@ function queryDB(player)
     local found = false;
     while (GetSQLNextRow(q))
     {
-        local rowName = GetSQLColumnData(q, 0);
-        if (rowName == name)
+        if (GetSQLColumnData(q, 0) == plyUID && GetSQLColumnData(q, 1) == name)
         {
-            local UID = GetSQLColumnData(q, 1);
-            if (plyUID == UID)
-            {
-                player.Cash = GetSQLColumnData(q, 2);
-                player.WantedLevel = GetSQLColumnData(q, 3);
-            }
-            else
-            {
-                MessagePlayer("This name is already registered to another player.",player);
-                NewTimer("kick",3000,1,player.Name);
-            }
+            player.Cash = GetSQLColumnData(q, 2);
+            player.WantedLevel = GetSQLColumnData(q, 3);
             found = true;
             break;
         }
     }
     if (!found)
     {
-        QuerySQL(db, "INSERT OR IGNORE INTO players (name, UID, money, wantedLevel) VALUES ('"+name+"', '"+plyUID+"', 0, 0)");
+        QuerySQL(db, "INSERT OR IGNORE INTO players (UID, name, money, wantedLevel) VALUES ('"+plyUID+"', '"+name+"', 0, 0)");
         player.Cash = 0;
         player.WantedLevel = 0;
         MessagePlayer("registered a new player :"+player.Name,player);
@@ -63,5 +59,5 @@ function saveDB(player)
 {
     local name=player.Name;
     local plyUID=player.UniqueID;
-    QuerySQL(db,"INSERT OR REPLACE INTO players (name,UID,money,wantedLevel) VALUES ('"+name+"', '"+plyUID+"', " + player.Cash + ", " + player.WantedLevel + ")");
+    QuerySQL(db,"INSERT OR REPLACE INTO players (UID, name, money, wantedLevel) VALUES ('"+plyUID+"', '"+name+"', " + player.Cash + ", " + player.WantedLevel + ")");
 }
