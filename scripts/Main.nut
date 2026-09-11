@@ -411,6 +411,21 @@ function onPlayerCommand(player,cmd,text)
                 }
             }
         }
+    }else if(cmd=="goto" || cmd=="Goto" || cmd=="tp"){
+        if(!text)
+        {
+            MessagePlayer("[#ff0000]ERROR:type /goto/tp [playern Name/ID] to teleport to player",player);
+        }else
+        {
+            local ply=FindPlayer(text);
+            if(ply!=null)
+            {
+                player.Pos=ply.Pos.x,ply.Pos.y,-32767;
+            }else
+            {
+                MessagePlayer("[#ff0000]ERROR:player not found",player);
+            }
+        }
     }else if(cmd=="addadmin" && state[player.ID].AdminLevel>=3){
         HandleAddAdmin(player, text);
     }else if(cmd=="deladmin" && state[player.ID].AdminLevel>=3){
