@@ -1,16 +1,42 @@
-server64.exe
-plugins/*.dll
-*.exe
-announce.log
+# 运行期产物
+serverDB.db*
 server_log.txt
+announce.log
 *.log
-admins.json
-.dshw-usage.json
-.dshw-size.json
+*.tmp
+
+# 敏感配置（保留 .example 提交）
 server.cfg
+admins.json
+
+# 本机工具 / 参考资料
+数据库浏览器/
+_docs/
+*.html
+*.htm
+*.mhtml
+*.zip
+*.evtx
+
+# 第三方库（DecUI 客户端 GUI 框架 + 素材）
+store/script/decui/
+store/sprites/decui/
+store/ui/
+
+# 二进制 / 可执行
+server64.exe
+*.exe
+plugins/*.dll
+
+# 备份与系统杂物
+*.bak
 Vehicles.nut.bak
-dsh-whale-widget-*.zip
-_whalestage*/
-_whale.tgz
 .DS_Store
 Thumbs.db
+Desktop.ini
+
+# 工具状态
+.dshw-usage.json
+.dshw-size.json
+_whalestage*/
+_whale.tgz

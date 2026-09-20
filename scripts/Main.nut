@@ -287,7 +287,7 @@ function onPlayerCommand(player,cmd,text)
                 }else{
                     if(wepID<=11){
                         player.GiveWeapon(wepID,114514);
-                        MessagePlayer( "[#00ff00]weapon:[#ffff00]"+Weplist1[wepID]+" [#00ff00]given,Weapon's ID:[#ffff00]"+wepID, player );
+                        MessagePlayer( "[#00ff00]weapon:[#ffff00]"+GetWeaponName(wepID)+" [#00ff00]given,Weapon's ID:[#ffff00]"+wepID, player );
                     }else
                     {
                     player.GiveWeapon(wepID,wepammo[wepID-12]);
@@ -298,7 +298,7 @@ function onPlayerCommand(player,cmd,text)
                 if(wepID >=1 && wepID <=33 && wepID!=16){
                     if(wepID<=11){
                         player.GiveWeapon(wepID,114514);
-                        MessagePlayer( "[#00ff00]weapon:[#ffff00]"+Weplist1[wepID]+" [#00ff00]given,Weapon's ID:[#ffff00]"+wepID, player );
+                        MessagePlayer( "[#00ff00]weapon:[#ffff00]"+GetWeaponName(wepID)+" [#00ff00]given,Weapon's ID:[#ffff00]"+wepID, player );
                     }else
                     {
                     player.GiveWeapon(wepID,wepammo[wepID-12]);
@@ -536,6 +536,19 @@ function onPlayerSpawn( player )
     }
     player.World=player.UniqueWorld;
     NewTimer("playerbh",3000,1,player.Name);
+}
+function onClientScriptData(player)
+{
+    local type=Stream.ReadInt();
+    if(type==0)
+    {
+        local ply=FindPlayer(Stream.ReadInt());
+        local hitplayer=FindPlayer(Stream.ReadInt());
+        if(hitplayer!=null)
+        {
+            Message(ply.Name+" hit "+hitplayer.Name);
+        }
+    }
 }
 function playerbh(Name)
 {
