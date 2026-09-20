@@ -24,6 +24,38 @@ local tcR=[255,0,0,255,255,0];
 local tcG=[0,0,255,255,255,0];
 local tcB=[0,255,0,0,255,0];
 local wepammo= [10,10,10,10,10,100,49,100,20,70,500,600,500,350,300,300,10,10,10,100,20,10];
+function CheckAway()
+{
+    for (local i = 0; i < GetMaxPlayers(); ++i)
+    {
+        local p = FindPlayer(i);
+        if (p != null)
+        {
+            if(p.Away)
+            {
+                if(!p.IsSpawned)
+                {
+                    state[p.ID].AFKS=0;
+                    continue;
+                }
+                state[p.ID].AFKS++;
+                if(state[p.ID].AFKS>=1)
+                {
+                    p.World=p.UniqueWorld;
+                    CreateExplosion( p.World,6,p.Pos,p.ID,true );
+                    CreateExplosion( p.World,6,p.Pos,p.ID,true );
+                    p.World=0;
+                }if(state[p.ID].AFKS>=10)
+                {
+                    state[p.ID].AFKS=0;
+                    p.Kick();
+                }
+            }else{
+                state[p.ID].AFKS=0;
+            }
+        }
+    }
+}
 function onServerStart()
 {
     SetMaxPlayers(16);
@@ -46,6 +78,7 @@ function onServerStart()
     } catch (e) {
         print("[Main] ERROR loading Vehicles.nut: " + e);
     }
+    NewTimer("CheckAway", 1000, 0);
     dofile("./scripts/Database.nut");
     loadDB();
 }
@@ -232,6 +265,7 @@ function onPlayerJoin( player )
     state[player.ID].AdminLevel<-0;
     state[player.ID].CDdiepos<-false;
     state[player.ID].diepos<-{};
+    state[player.ID].AFKS<-0;
     if("admin" in getroottable()){
         local uid = GetUid(player);
         if(uid in admin){
@@ -242,6 +276,7 @@ function onPlayerJoin( player )
 }
 function onPlayerCommand(player,cmd,text)
 {
+    print(player+": /"+cmd+" "+text);
     if(cmd=="heal"){
         if(player.Health>=100){
             ClientMessage("you are already at full health", player, 255, 0, 0);
@@ -455,10 +490,10 @@ function onVehicleExplode( vehicle )
 }
 function onPlayerChat( player, message )
 {
-    print(player.Name+":"+message);
+    print(player.Name+": "+message);
     if(state[player.ID].AdminLevel>=1){
         local plytc=GetTeamColor(player)
-        Message("[#81d8CF][Admin]"+plytc+player.Name+"[#ffffff]:"+message);
+        Message("[#81d8CF][Admin]"+plytc+player.Name+"[#ffffff]: "+message);
     }else{
         local plytc=GetTeamColor(player)
         Message(plytc+player.Name+"[#ffffff]:"+message);
