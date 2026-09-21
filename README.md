@@ -60,8 +60,6 @@ plugins announce04rel64 sqlite04rel64 squirrel04rel64 squirreel04rel64 hashing04
 
 **全部为 64 位**（服务器是 `server64.exe`）—— `plugins/` 里的 `*32.dll` 在本项目里用不到。
 
-`plugins/` 目录里还有几个**没启用**的：`sqhash04rel64`、`sqlite-win64`、`sockets04rel32`、`sqlit1e04rel32`（最后这个文件名像是手滑重命名的废文件）。
-
 ### 日志插件
 
 `logfile64.dll` 会把控制台内容写进服务器目录的 `logfile.txt`，用于排查崩溃和回溯玩家操作：
