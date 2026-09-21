@@ -39,24 +39,16 @@
 - 服务器启动和 `/reload` 时读取，也可用 `/addadmin` 添加；
 - 参考同目录下的 `admins.json.example`。
 
-## 插件
+## 依赖插件
 
-`server.cfg` 里 `plugins` 一行实际加载的插件：
+服务器至少需要加载这几个（缺了对应功能不可用）：
 
-```
-plugins announce04rel64 sqlite04rel64 squirrel04rel64 squirreel04rel64 hashing04rel64 actor04rel64 ini04rel64 json04rel64
-```
-
-| 插件 | 用途 | 来源 |
+| 插件 | 用途 | 下载 |
 |---|---|---|
-| **squirrel04rel64** | Squirrel 脚本引擎（核心，必需） | [Stormeus](https://bitbucket.org/stormeus/0.4-squirrel/downloads/) |
+| **squirrel04rel64** | Squirrel 脚本引擎（必需） | [Stormeus](https://bitbucket.org/stormeus/0.4-squirrel/downloads/) |
+| **sqlite04rel64** | 玩家存档（`scripts/Database.nut`） | [Stormeus](https://bitbucket.org/stormeus/0.4-sqlite/downloads/) |
+| **json04rel64** | 管理员表（`scripts/AdminJson.nut`） | Crys |
 | **announce04rel64** | 向 masterlist 上报服务器 | [Stormeus](https://bitbucket.org/stormeus/0.4-announce/downloads/) |
-| **sqlite04rel64** | 玩家存档数据库 | [Stormeus](https://bitbucket.org/stormeus/0.4-sqlite/downloads/) |
-| **json04rel64** | 管理员表读写（`fromJSONFile` / `toJSONFile`） | Crys |
-| **hashing04rel64** | 哈希算法 | [Stormeus](https://bitbucket.org/stormeus/0.4-hashing-algorithms/downloads/) |
-| **ini04rel64** | ini 读写（已标注 deprecated，但被依赖） | [Stormeus](https://bitbucket.org/stormeus/0.4-iniparser/downloads/) |
-| **actor04rel64** | `create_actor` 模块（地图 NPC） | 论坛 |
-| **squirreel04rel64** | Squirrel 扩展（部分脚本函数来自它） | 论坛 |
 
 **全部为 64 位**（服务器是 `server64.exe`）—— `plugins/` 里的 `*32.dll` 在本项目里用不到。
 
