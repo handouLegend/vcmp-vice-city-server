@@ -31,27 +31,27 @@ function CheckAway()
         local p = FindPlayer(i);
         if (p != null)
         {
-            if(p.Away)
+            if(p.Away && state[p.ID].AdminLevel<=2)
             {
                 if(!p.IsSpawned)
                 {
                     state[p.ID].AFKS=0;
                     continue;
                 }
-                state[p.ID].AFKS++;
-                if(state[p.ID].AFKS>=1)
+                state[p.ID].AFKS+=0.1;
+                if(state[p.ID].AFKS>=1.0)
                 {
                     p.World=p.UniqueWorld;
                     CreateExplosion( p.World,6,p.Pos,p.ID,true );
                     CreateExplosion( p.World,6,p.Pos,p.ID,true );
                     p.World=0;
-                }if(state[p.ID].AFKS>=10)
+                }if(state[p.ID].AFKS>=10.0)
                 {
-                    state[p.ID].AFKS=0;
+                    state[p.ID].AFKS=0.0;
                     p.Kick();
                 }
             }else{
-                state[p.ID].AFKS=0;
+                state[p.ID].AFKS=0.0;
             }
         }
     }
@@ -78,7 +78,7 @@ function onServerStart()
     } catch (e) {
         print("[Main] ERROR loading Vehicles.nut: " + e);
     }
-    NewTimer("CheckAway", 1000, 0);
+    NewTimer("CheckAway", 100, 0);
     dofile("./scripts/Database.nut");
     loadDB();
 }
@@ -265,7 +265,7 @@ function onPlayerJoin( player )
     state[player.ID].AdminLevel<-0;
     state[player.ID].CDdiepos<-false;
     state[player.ID].diepos<-{};
-    state[player.ID].AFKS<-0;
+    state[player.ID].AFKS<-0.0;
     if("admin" in getroottable()){
         local uid = GetUid(player);
         if(uid in admin){
@@ -410,13 +410,22 @@ function onPlayerCommand(player,cmd,text)
         ReloadScripts();
     }else if(cmd=="diepos"){
         if(text=="on"){
-            MessagePlayer("[#00ff00]diepos [on]",player);
-            state[player.ID].CDdiepos=true;
-        }else if(text=="off"){
+            state[player.ID].CDdiepos=!state[player.ID].CDdiepos;
+            if(state[player.ID].CDdiepos){
+                MessagePlayer("[#00ff00]diepos [on]",player);
+                return;
+            }
             MessagePlayer("[#00ff00]diepos [off]",player);
+        }else if(text=="off"){
             state[player.ID].CDdiepos=false;
-        }else{
-            MessagePlayer("[#ff0000]Please type /diepos on/off to set diepos",player);
+            MessagePlayer("[#00ff00]diepos [off]",player);
+        }else if(text==null){
+            state[player.ID].CDdiepos=!state[player.ID].CDdiepos;
+            if(state[player.ID].CDdiepos){
+                MessagePlayer("[#00ff00]diepos [on]",player);
+                return;
+            }
+            MessagePlayer("[#00ff00]diepos [off]",player);
         }
     }else if(cmd=="boom"){
         if(!text){
@@ -467,6 +476,8 @@ function onPlayerCommand(player,cmd,text)
         HandleAddAdmin(player, text);
     }else if(cmd=="deladmin" && state[player.ID].AdminLevel>=3){
         HandleDelAdmin(player, text);
+    }else if(cmd=="sound"){
+        PlaySound(player.World, 50000,player.Pos)
     }else{
         ClientMessage("The command "+cmd+" is not available, please type /help for a list of commands", player, 255, 0, 0);
     }
@@ -559,7 +570,8 @@ function onPlayerDeath(player,reason){
     {
         state[player.ID].diepos=player.Pos;
     }else{
-        state[player.ID].diepos=null;
+        state[player.ID].diepos=player.Pos;
+        state[player.ID].diepos.z=-114514;
     }
 }
 function onPlayerSpawn( player )
@@ -581,7 +593,6 @@ function onClientScriptData(player)
         local hitplayer=FindPlayer(Stream.ReadInt());
         if(hitplayer!=null)
         {
-            Message(ply.Name+" hit "+hitplayer.Name);
         }
     }
 }

@@ -5,19 +5,19 @@
 ## 环境要求
 
 - **VC:MP 0.4 server**（`server64.exe`，64 位）
-- **Squirrel 插件**（`squirrel04rel64` / `squirreel04rel64`）
+- **Squirrel 插件**（`squirrel04rel64`）
 - **json04rel64** —— 管理员 JSON 存储依赖此插件
 
 ## 安装
 
 1. 对应位置：
    - `scripts/Main.nut` —— 主脚本
-   - `scripts/Vehicles.nut`、`scripts/AdminJson.nut` —— 脚本目录
+   - `scripts/Vehicles.nut`、`scripts/AdminJson.nut`、`scripts/DataBase.nut` —— 脚本目录
    - `admins.json` —— 服务器根目录（配置）
    - `plugins/` —— 需要的插件 dll
 2. 配置 `server.cfg`
    ```
-   plugins ... json04rel64
+   plugins ... 
    ```
 3. 启动 `server64.exe`。
 
@@ -25,10 +25,6 @@
 
 ### 管理员（`admins.json`，服务器根目录）
 
-```json
-{
-  "admins": ["111.111.111.111", "222.222.222.222"]
-}
 ```
 
 - 服务器启动/重载时读取；
