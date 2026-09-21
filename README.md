@@ -41,16 +41,12 @@
 
 ## 依赖插件
 
-服务器至少需要加载这几个（缺了对应功能不可用）：
-
 | 插件 | 用途 | 下载 |
 |---|---|---|
 | **squirrel04rel64** | Squirrel 脚本引擎（必需） | [Stormeus](https://bitbucket.org/stormeus/0.4-squirrel/downloads/) |
 | **sqlite04rel64** | 玩家存档（`scripts/Database.nut`） | [Stormeus](https://bitbucket.org/stormeus/0.4-sqlite/downloads/) |
 | **json04rel64** | 管理员表（`scripts/AdminJson.nut`） | Crys |
 | **announce04rel64** | 向 masterlist 上报服务器 | [Stormeus](https://bitbucket.org/stormeus/0.4-announce/downloads/) |
-
-**全部为 64 位**（服务器是 `server64.exe`）—— `plugins/` 里的 `*32.dll` 在本项目里用不到。
 
 ### 日志插件
 
