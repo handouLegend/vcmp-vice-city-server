@@ -482,18 +482,18 @@ function onPlayerCommand(player,cmd,text)
         local t=split(text," ");
         if(t!=null && t.len()>=2)
         {
-            local ply=FindPlayer(text[0]);
+            local ply=FindPlayer(t[0]);
             if(ply!=null)
             {
                 local mins=0;
-                local reason=p[1];
+                local reason=t[1];
                 if(t.len()>=3){
-                    mins=p[1].tointeger();
-                    reason=p[2];
+                    mins=t[1].tointeger();
+                    reason=t[2];
                 }
                 addbanDB(ply,reason,mins,player);
             }else{
-                MessagePlayer("[#ff0000]player not found: "+p[0],player);
+                MessagePlayer("[#ff0000]player not found: "+t[0],player);
             }
         }else{
             MessagePlayer("[#ff0000]usage: /ban <player> [minutes] <reason>",player);
