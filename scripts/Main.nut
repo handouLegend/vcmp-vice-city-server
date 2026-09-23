@@ -56,6 +56,14 @@ function CheckAway()
         }
     }
 }
+function checkEvade(plyName)
+{
+    local p=FindPlayer(plyName);
+    if(p!=null)
+    {
+        state[p.ID].evade=false;
+    }
+}
 function onServerStart()
 {
     SetMaxPlayers(16);
@@ -268,6 +276,7 @@ function onPlayerJoin( player )
     state[player.ID].CDdiepos<-false;
     state[player.ID].diepos<-{};
     state[player.ID].AFKS<-0.0;
+    state[player.ID].evade<-false;
     if("admin" in getroottable()){
         local uid = GetUid(player);
         if(uid in admin){
@@ -491,12 +500,19 @@ function onPlayerCommand(player,cmd,text)
                     mins=t[1].tointeger();
                     reason=t[2];
                 }
-                addbanDB(ply,reason,mins,player);
+                addbanDB(ply,reason,mins,player.Name);
             }else{
                 MessagePlayer("[#ff0000]player not found: "+t[0],player);
             }
         }else{
             MessagePlayer("[#ff0000]usage: /ban <player> [minutes] <reason>",player);
+        }
+    }else if(cmd=="unban" && state[player.ID].AdminLevel>=2){
+        if(text!=null)
+        {
+            unbanDB(text,player);
+        }else{
+            MessagePlayer("[#ff0000]usage: /unban <name or UID>",player);
         }
     }else if(cmd=="sound"){
         PlaySound(player.World, 50000,player.Pos)
@@ -521,6 +537,14 @@ function onVehicleExplode( vehicle )
         }
     }
 }
+function onPlayerHealthChange( player, lastHP, newHP )
+{
+    if(lastHP > newHP && lastHP-newHP>=15 && newHP<=50)
+    {
+        state[player.ID].evade=true;
+        NewTimer("checkEvade",5000,1,player.Name);
+    }
+}
 function onPlayerChat( player, message )
 {
     print(player.Name+": "+message);
@@ -533,9 +557,16 @@ function onPlayerChat( player, message )
  }
 }
 function onPlayerPart(player,reason){
-    if(player.ID in state){
-        if("tempVeh" in state[player.ID] && state[player.ID].tempVeh != null){
-            state[player.ID].tempVeh.Delete();
+    if(player.ID in state)
+    {
+        if(state[player.ID].evade)
+        {
+            addbanDB(player,"Evade Death",30,"Server");
+        }
+        if(player.ID in state){
+            if("tempVeh" in state[player.ID] && state[player.ID].tempVeh != null){
+                state[player.ID].tempVeh.Delete();
+            }
         }
     }
     saveDB(player);

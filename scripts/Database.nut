@@ -1,9 +1,23 @@
 local db;
-function bankick(ply,adminName,reason)
+function bankick(ply,adminName,reason,tim)
 {
+    local now=time();
+    local bantime=0;
+    if(tim!=0){
+        bantime=(tim-now)/60;
+        if(bantime<1){
+            bantime=1;
+        }
+    }
     if(ply!=null)
     {
-        Message("[#ff0000][BAN] Player: "+ply.Name+"has been banned by [#00ff00]"+adminName+"[#ff0000]. Reason: "+reason);
+        if(bantime!=0)
+        {
+           Message("[#ff0000][BAN] Player: "+ply.Name+"has been banned by [#00ff00]"+adminName+"[#ff0000]. Reason: "+reason+" Time remaining: "+bantime);
+           ply.Kick(); 
+           return;
+        }
+        Message("[#ff0000][BAN] Player: "+ply.Name+"has been banned by [#00ff00]"+adminName+"[#ff0000]. Reason: "+reason+" Time remaining: permanent");
         ply.Kick(); 
     }
 }
@@ -67,8 +81,7 @@ function checkbanDB(ply)
             {
                 if(bexpire ==0 || bexpire>now)
                 {
-                    BanPlayer(ply);
-                    bankick(ply,badmin,breason);
+                    bankick(ply,badmin,breason,bexpire);
                     FreeSQLQuery(q);
                     return true;
                 }
@@ -80,7 +93,7 @@ function checkbanDB(ply)
 }
 function addbanDB(ply,breason,tim,badmin)
 {
-    local q=QuerySQL(db,"SELECT UID, UID2, IP, Name, expire FROM bans");
+    local q=QuerySQL(db,"SELECT UID, UID2, IP, admin, expire FROM bans");
     if(q!=null)
     {
         local now=time();
@@ -92,12 +105,13 @@ function addbanDB(ply,breason,tim,badmin)
             local bUID=GetSQLColumnData(q, 0);
             local bUID2=GetSQLColumnData(q, 1);
             local bIP=GetSQLColumnData(q, 2);
+            local bAdmin=GetSQLColumnData(q, 3);
             local bexpire=GetSQLColumnData(q, 4);
             if(ply.UniqueID==bUID || ply.UniqueID2==bUID || ply.UniqueID==bUID2 || ply.UniqueID2==bUID2 || ply.IP==bIP)
             {
-                if(bexpire!=0 && bexpire<=now)
+                if(bexpire!=0 && bexpire<=now && bAdmin!="Server" && badmin!="Server")
                 {
-                    QuerySQL(db,"INSERT OR REPLACE INTO bans (UID, UID2, IP, Name, reason, admin, expire) VALUES('"+ply.UniqueID+"','"+ply.UniqueID2+"','"+ply.IP+"','"+ply.Name+"','"+breason+"','"+badmin.Name+"',"+0+")");
+                    QuerySQL(db,"INSERT OR REPLACE INTO bans (UID, UID2, IP, Name, reason, admin, expire) VALUES('"+ply.UniqueID+"','"+ply.UniqueID2+"','"+ply.IP+"','"+escapeSQLString(ply.Name)+"','"+escapeSQLString(breason)+"','"+escapeSQLString(badmin)+"',"+0+")");
                     checkbanDB(ply);
                 }else if(bexpire==0)
                 {
@@ -110,8 +124,21 @@ function addbanDB(ply,breason,tim,badmin)
     }
     local expire = 0;
     if (tim > 0) expire = time() + (tim * 60);
-    QuerySQL(db,"INSERT OR REPLACE INTO bans (UID, UID2, IP, Name, reason, admin, expire) VALUES('"+ply.UniqueID+"','"+ply.UniqueID2+"','"+ply.IP+"','"+ply.Name+"','"+breason+"','"+badmin.Name+"',"+expire+")");
+    QuerySQL(db,"INSERT OR REPLACE INTO bans (UID, UID2, IP, Name, reason, admin, expire) VALUES('"+ply.UniqueID+"','"+ply.UniqueID2+"','"+ply.IP+"','"+escapeSQLString(ply.Name)+"','"+escapeSQLString(breason)+"','"+escapeSQLString(badmin)+"',"+expire+")");
     checkbanDB(ply);
+}
+function unbanDB(plyname,admin)
+{
+    local plyn = escapeSQLString(plyname);
+    local q = QuerySQL(db,"SELECT expire FROM bans WHERE UID='"+plyn+"' OR Name='"+plyn+"'");
+    if(plyname!=null && q!=null)
+    {
+        local now=time();
+        QuerySQL(db,"UPDATE bans SET expire="+time()+" WHERE UID='"+escapeSQLString(plyname)+"' OR Name='"+escapeSQLString(plyname)+"'");
+        MessagePlayer("[#00ff00]unbanned: "+plyname, admin);
+    }else{
+        MessagePlayer("[#ff0000]not in banlist: "+plyname, admin);
+    }
 }
 function queryDB(player)
 {
