@@ -539,7 +539,7 @@ function onVehicleExplode( vehicle )
 }
 function onPlayerHealthChange( player, lastHP, newHP )
 {
-    if(lastHP > newHP && lastHP-newHP>=15 && newHP<=50)
+    if(lastHP > newHP && lastHP-newHP>=5 && newHP<=50)
     {
         state[player.ID].evade=true;
         NewTimer("checkEvade",5000,1,player.Name);
