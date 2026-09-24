@@ -113,13 +113,16 @@ function addbanDB(ply,breason,tim,badmin)
                 {
                     QuerySQL(db,"INSERT OR REPLACE INTO bans (UID, UID2, IP, Name, reason, admin, expire) VALUES('"+ply.UniqueID+"','"+ply.UniqueID2+"','"+ply.IP+"','"+escapeSQLString(ply.Name)+"','"+escapeSQLString(breason)+"','"+escapeSQLString(badmin)+"',"+0+")");
                     checkbanDB(ply);
+                    FreeSQLQuery(q);
+                    return;
                 }else if(bexpire==0)
                 {
                     checkbanDB(ply);
+                    FreeSQLQuery(q);
+                    return;
                 }
-                FreeSQLQuery(q);
-                return;
             }
+            FreeSQLQuery(q);
         }
     }
     local expire = 0;

@@ -18,6 +18,7 @@ class player{
     havecar=false;
 }
 state <-{};
+lastAttacker <- {};
 local notcar=["155","177","162","160"];
 local teamColor = ["red", "blue", "green", "yellow","white", "black" ];
 local tcR=[255,0,0,255,255,0];
@@ -544,6 +545,21 @@ function onPlayerHealthChange( player, lastHP, newHP )
         state[player.ID].evade=true;
         NewTimer("checkEvade",5000,1,player.Name);
     }
+    if(lastAttacker.rawin(player.ID))
+    {
+        local shooterID=lastAttacker[player.ID];
+        lastAttacker.rawdelete(player.ID);
+        hitinfo(shooterID, player.ID);
+    }
+}
+function onPlayerArmourChange(player,lastArmour,nemArmour)
+{
+    if(lastAttacker.rawin(player.ID))
+    {
+        local shooterID=lastAttacker[player.ID];
+        lastAttacker.rawdelete(player.ID);
+        hitinfo(shooterID, player.ID);
+    }
 }
 function onPlayerChat( player, message )
 {
@@ -639,18 +655,30 @@ function onPlayerSpawn( player )
 }
 function onClientScriptData(player)
 {
-    local type=Stream.ReadInt();
-    if(type==0)
+    local typecode=Stream.ReadInt();
+    if(typecode==0)
     {
-        local ply=FindPlayer(Stream.ReadInt());
+        Stream.ReadInt();
         local hitplayer=FindPlayer(Stream.ReadInt());
-        if(hitplayer!=null)
-        {
-        }
+        lastAttacker[hitplayer.ID] <- player.ID;
     }
 }
 function playerbh(Name)
 {
     local ply=FindPlayer(Name);
     if(ply) ply.World=0;
+}
+function hitinfo(plyID,hitplyID)
+{
+    local ply=FindPlayer(plyID);
+    local hitplayer=FindPlayer(hitplyID);
+    if(hitplayer!=null)
+    {
+        Stream.StartWrite();
+        Stream.WriteInt(0);
+        Stream.WriteInt(hitplayer.Health.tointeger());
+        Stream.WriteInt(hitplayer.Armour.tointeger());
+        Stream.WriteString(hitplayer.Name);
+        Stream.SendStream(ply);
+    }
 }
