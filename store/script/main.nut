@@ -43,8 +43,6 @@ function Player::PlayerShoot(player,weapon,hitEntity,hitPosition)
         hit.WriteInt(player.ID);
         hit.WriteInt(target.ID); 
         Server.SendData(hit);
-        hitLabel.Text = "Hit " + hitEntity.Name;
-        hitLabel.Alpha = 255;
     }
 }
 function Server::ServerData(Stream)
@@ -56,5 +54,6 @@ function Server::ServerData(Stream)
         local pArm=Stream.ReadInt();
         local pnm=Stream.ReadString();
         hitLabel.Text=format("Hit %s, HP: %d / %d", pnm, pHeal, pArm);
+        hitLabel.Alpha=255;
     }
 }
