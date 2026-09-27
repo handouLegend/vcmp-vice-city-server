@@ -14,10 +14,56 @@ seterrorhandler(function (e) {
 });
 dofile("decui/decui.nut");
 local hitLabel=null;
+
+// ---- cutscene title card: the original's black card, then a fade into the scene ----
+// These are file level locals, NOT `<-` slots. A client script is compiled into a Sqrat class, so
+// `<-` would make them class members, and a plain function assigning to a class member throws
+// "trying to set 'class'" (this is why hitLabel above is a local too).
+local cutCardOn    = false;
+local cutCardId    = "cutsceneCard";
+local cutCardHold  = 0;      // ms fully opaque
+local cutCardFade  = 0;      // ms to fade out
+local cutCardShown = 0;      // Script.GetTicks() when it appeared
+
+function cutCardShow(file, hold, fade)
+{
+    if(UI.Sprite(cutCardId) == null)
+        UI.Sprite({ id = cutCardId, file = file, Size = GUI.GetScreenSize() });
+
+    local sp = UI.Sprite(cutCardId);
+    if(sp != null) sp.Alpha = 255;
+
+    cutCardHold  = hold;
+    cutCardFade  = fade;
+    cutCardShown = Script.GetTicks();
+    cutCardOn    = true;
+}
 function Script::ScriptProcess()
 {
     UI.events.scriptProcess();
     if(hitLabel !=null &&hitLabel.Alpha) hitLabel.Alpha -= 2;
+
+    // title card: hold it, then fade out against the real clock (Script.GetTicks is ms)
+    if(cutCardOn)
+    {
+        local sp = UI.Sprite(cutCardId);
+        if(sp == null){ cutCardOn = false; }
+        else
+        {
+            local el = Script.GetTicks() - cutCardShown;
+            local a  = 255;
+            if(el > cutCardHold){
+                a = cutCardFade > 0 ? 255 - (255 * (el - cutCardHold) / cutCardFade) : 0;
+                if(a < 0) a = 0;
+            }
+            if(a <= 0){
+                sp.destroy();
+                cutCardOn = false;
+            } else {
+                sp.Alpha = a;
+            }
+        }
+    }
 }
 function Script::ScriptLoad()
 {
@@ -48,6 +94,21 @@ function Player::PlayerShoot(player,weapon,hitEntity,hitPosition)
 function Server::ServerData(Stream)
 {
     local typecode=Stream.ReadInt();
+    if(typecode == 1)
+    {
+        // cutscene title card: sprite path, hold ms, fade ms
+        local file = Stream.ReadString();
+        local hold = Stream.ReadInt();
+        local fade = Stream.ReadInt();
+        cutCardShow(file, hold, fade);
+        return;
+    }
+    if(typecode == 2)
+    {
+        // the server says the actors are on stage: start fading the card right now
+        cutCardHold = Script.GetTicks() - cutCardShown;
+        return;
+    }
     if(typecode == 0)
     {
         local pHeal=Stream.ReadInt();

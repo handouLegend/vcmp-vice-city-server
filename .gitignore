@@ -40,3 +40,19 @@ Desktop.ini
 .dshw-size.json
 _whalestage*/
 _whale.tgz
+
+# big assets / runtime output (added during cutscene work)
+photo/
+recordings/
+npcscripts/logs/
+store/sounds/s50002_silence.mp3
+
+# game text dumps (extracted from the game, re-derivable, not ours)
+GTAVC_txt/
+
+# no binaries anywhere (plugins are installed separately)
+*.dll
+npcscripts/plugin/
+
+npcscripts/plugins/
+npcscripts/recordings/
