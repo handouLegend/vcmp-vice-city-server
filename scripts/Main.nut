@@ -17,51 +17,10 @@ class player{
     wep8 = 0;     
     havecar=false;
 }
-// The room's shell and floor are blocks the map tool built out of one model. They have to follow the
-// same roomOffset as the scene: without them there is no floor at the replica and the actors - which
-// are real clients with gravity - simply fall out of the sky.
-function rp(x, y, z)
-{
-    if("roomOffset" in getroottable()) return Vector(x + roomOffset.x, y + roomOffset.y, z + roomOffset.z);
-    return Vector(x, y, z);
-}
-
-// Every room object is created through here. While roomSink is an array the objects land in it, which
-// is how a player's own copy of the room is remembered so it can be deleted when his scene ends.
-roomSink <- null;
-function mk(model, wd, pos)
-{
-    local o = CreateObject(model, wd, pos, 255);
-    if(roomSink != null) roomSink.append(o);
-    return o;
-}
-
-function objcrt(wd)
-{
-    mk(318,wd,rp(219.477,-1282.75,18.1755)).RotateTo(Quaternion(0.515351,0.483811,0.483924,0.515905),0); 
-    mk(318,wd,rp(218.232,-1287.21,18.1381)).RotateTo(Quaternion(0.704845,-0.0186311,-0.0202258,0.708828),0); 
-    mk(318,wd,rp(214.731,-1289.2,19.5912)).RotateTo(Quaternion(-0.00802745,-0.00120627,0.692122,0.721735),0); 
-    mk(318,wd,rp(218.166,-1289.55,18.1631)).RotateTo(Quaternion(0.708734,-0.0176814,-0.0211735,0.704936),0); 
-    mk(318,wd,rp(222.246,-1289.52,18.1631)).RotateTo(Quaternion(0.490982,-0.517592,-0.505715,0.485065),0); 
-    mk(318,wd,rp(218.04,-1291.52,18.1631)).RotateTo(Quaternion(0.708734,-0.0176814,-0.0211735,0.704936),0); 
-    mk(318,wd,rp(214.829,-1295.67,19.4412)).RotateTo(Quaternion(0.0144896,-0.0148729,0.704436,0.709464),0); 
-    mk(318,wd,rp(216.113,-1295.77,18.1631)).RotateTo(Quaternion(0.50542,-0.507204,-0.491998,0.49521),0); 
-    mk(318,wd,rp(217.378,-1296.02,18.1631)).RotateTo(Quaternion(0.508077,-0.504833,-0.490596,0.496304),0); 
-    mk(318,wd,rp(218.664,-1296.04,19.4037)).RotateTo(Quaternion(-0.00056442,0.00267906,0.704564,0.709636),0); 
-    mk(318,wd,rp(221.903,-1292.76,19.4162)).RotateTo(Quaternion(-0.0410524,0.00391166,0.998983,-0.0182592),0); 
-    mk(318,wd,rp(223.441,-1289.57,19.4037)).RotateTo(Quaternion(-0.000524171,0.00268723,0.69384,0.720124),0); 
-    mk(318,wd,rp(224.907,-1285.94,19.4162)).RotateTo(Quaternion(-0.00442892,0.0097334,0.999877,0.0115138),0); 
-    mk(318,wd,rp(221.74,-1282.63,19.4162)).RotateTo(Quaternion(-0.0100407,0.00367962,0.710179,-0.703939),0); 
-    mk(318,wd,rp(220.672,-1282.68,18.1755)).RotateTo(Quaternion(0.515351,0.483811,0.483924,0.515905),0); 
-    mk(318,wd,rp(218.058,-1282.4,19.4162)).RotateTo(Quaternion(-0.00473683,0.00894749,0.708367,-0.705772),0); 
-    mk(318,wd,rp(216.385,-1285.8,20.2161)).RotateTo(Quaternion(-0.723532,-0.00212275,0.690273,0.00454486),0); 
-    mk(318,wd,rp(218.073,-1298.97,19.4162)).RotateTo(Quaternion(-0.0410524,0.00391166,0.998983,-0.0182592),0); 
-    mk(318,wd,rp(219.477,-1282.75,21.3754)).RotateTo(Quaternion(0.515351,0.483811,0.483924,0.515905),0); 
-    mk(318,wd,rp(219.868,-1279.52,19.4662)).RotateTo(Quaternion(-0.999399,0.0322933,0.0021453,0.0124026),0); 
-}
+// The room build helpers (rp / mk / objcrt / roomBuild) now live in scripts/room_replica.nut: the room
+// is that family's business and this file only owns the engine capability layer.
 state <-{};
 missions <- {};
-cutscenes <- {};
 shots <- {};
 freecam <- {};
 npcCount <- 0;
@@ -123,7 +82,6 @@ function onServerStart()
 {
     SetMaxPlayers(16);
     SetTimeRate(10000);
-    SetGameModeName("VCS20TH");
     SetFriendlyFire(true);
     SetPassword("");
     SetStuntBike(true);
@@ -146,17 +104,23 @@ function onServerStart()
     loadDB();
     loadbanDB();
     NewTimer("sceneClock", 1000, 0);
-    NewTimer("cutTick", 50, 0);
+    // 25 ms, not 50: this is the only clock that can move anything, and a vehicle with nobody driving it
+    // is walked by writing its position here. At 50 ms the car advanced 0.26 m per update and the client
+    // showed that as a stutter, which reads as "the car is going too fast and it judders".
+    NewTimer("missionTick", 25, 0);
     NewTimer("freecamClock", 10, 0);
-    dofile("./scripts/missions/ken_01_an_old_friend.nut");
+    // The old mission file (missions/ken_01_an_old_friend.nut) is gone: its content was merged into
+    // missions/intro.nut, and the old name still starts the same scene through the forwarders at the
+    // bottom of that file (`/m` with no argument defaults to that name, see the /m handler below).
     // The cutscene room, rebuilt as our own objects somewhere the game treats as open air. Inside
     // the hotel interior the room inherits its loud ambience, and VC culls the interior's own
     // objects the moment the player counts as being outside it - so the scene has to move out, and
-    // the scenery has to be ours. Loaded before the scene, which applies roomOffset to its cast.
+    // the scenery has to be ours. The world 0 copy built here is permanent: it is the floor the
+    // actors' own npcclient processes stand on, whatever world the viewer is in.
     dofile("./scripts/room_replica.nut");
-    roomReplica(roomOffset, 0);
-    dofile("./scripts/scenes/sonny_office.nut");
-    objcrt(0);
+    roomBuild(roomOffset, 0);
+    // Missions own their own content; loading the file only registers it in the missions table.
+    dofile("./scripts/missions/intro.nut");
 }
 function weapons(weps)
 {
@@ -360,29 +324,14 @@ function onPlayerJoin( player )
     state[player.ID].CP<-null;
     state[player.ID].msg<-null;
     state[player.ID].cleanCP<-false;
-    state[player.ID].cut<-null;
-    state[player.ID].cutShot<-0;
-    state[player.ID].keepPos<-null;
-    state[player.ID].shotHold<-0;
-    state[player.ID].shotFrames<-1;
-    state[player.ID].subIdx<-0;
-    state[player.ID].cutT<-0.0;
-    // has to be created here with <-: this state table is a plain {} and `=` cannot add a slot
-    state[player.ID].cutStart<-0;
-    state[player.ID].cutWorld<-0;         // world the scene is being played in (the player's own)
-    state[player.ID].cutRoom<-null;       // room objects built for this player, deleted on end
-    state[player.ID].cutActors<-null;     // names of this player's own actors, kicked on end
-    state[player.ID].wantCut<-false;      // /home asked for the scene (see cutTick)
-    state[player.ID].cutCaption<-false;   // opening title card already shown?
-    state[player.ID].cutAudio<-false;     // cutscene audio already started?
-    state[player.ID].cutWaiting<-false;   // pre-roll still waiting for the actors to exist?
-    state[player.ID].preTick<-0;          // last re-trigger of the pre-roll sound hold
-    state[player.ID].shotStart<-0.0;
-    state[player.ID].shotLen<-1.0;
-    state[player.ID].camA<-null;
-    state[player.ID].camB<-null;
-    state[player.ID].lookA<-null;
-    state[player.ID].lookB<-null;
+    // engine side bookkeeping for whatever mission this player runs; the mission itself never holds
+    // an object handle (see engRun)
+    state[player.ID].missionWorld<-0;     // world the mission runs in (the player's own, see /home)
+    state[player.ID].missionRoom<-null;   // his copy of the room, deleted on the way out
+    state[player.ID].missionObjs<-{};     // objects he asked for, by the mission's own tag
+    state[player.ID].missionActors<-[];   // names of his NPCs, kicked on the way out
+    state[player.ID].missionVeh<-null;    // a real vehicle the mission asked for, deleted on the way out
+    state[player.ID].missionKeepPos<-null;// where to put him back when the mission ends
     if(freecam.rawin(player.ID)) freecam.rawset(player.ID, null);
     if("admin" in getroottable()){
         local uid = GetUid(player);
@@ -405,7 +354,39 @@ function onPlayerCommand(player,cmd,text)
         print("[POS] checkpoint moved to "+player.Pos.x+", "+player.Pos.y+", "+player.Pos.z);
     }
     if(cmd=="m"){
-        startMission(player, "ken_01_an_old_friend");
+        // /m [mission] [act] - act is optional. No argument at all still starts the old
+        // ken_01_an_old_friend name (which mission_intro_begin forwards), exactly as before.
+        // Parsed the way /rec does it: no string.split() in this Squirrel, so cut the text by hand.
+        local txt = (text == null) ? "" : text;
+        local sp  = txt.find(" ");
+        local name = ((sp == null) ? txt : txt.slice(0, sp));
+        if(name == "") name = "ken_01_an_old_friend";
+
+        local actStr = (sp == null) ? "" : txt.slice(sp + 1);
+        local act    = null;                  // null = "use the mission's own first act"
+        if(actStr != ""){
+            // digits only: tointeger() would happily turn "abc" into 0 or throw; this way a typo is
+            // reported instead of silently starting act 0.
+            local m = actStr.find("[^0-9]");
+            if(m == null){
+                try { act = actStr.tointeger(); } catch(e) { act = null; }
+            }
+            if(act == null){
+                MessagePlayer("[#ff0000]bad act number: "+actStr+" - usage: /m <mission> [act], e.g. /m intro 1", player);
+                return;
+            }
+        }
+
+        // Hand the act over without knowing anything about missions: mission_intro_begin reads this
+        // one and deletes it (see the note at its definition), so it is set here and cleared in
+        // missionTick whether the mission used it or not.
+        if(act != null) getroottable()["missionStartAct"] <- act;
+        // ENTER HIS OWN WORLD FIRST, exactly as /home does. A mission runs in whatever world the player
+        // is in when it starts (missionTick records `missionWorld = p.World`), so starting it from world 0
+        // played the whole scene in world 0 - where the server's own static vehicles live, which is how
+        // he noticed ("地图上刷的车，这车只会在世界零刷"). /home always did this; /m did not.
+        player.World = player.UniqueWorld;
+        startMission(player, name);
     }
     if(cmd=="heal"){
         if(player.Health>=100){
@@ -491,7 +472,7 @@ function onPlayerCommand(player,cmd,text)
         }
         player.Colour=RGB(tcR[player.Team],tcG[player.Team],tcB[player.Team]);
     }else if (cmd=="help"){
-        ClientMessage("available commands: /heal, /arm, /money, /skin, /weapon, /att, /team, /help", player, 0, 255, 0);
+        ClientMessage("available commands: /m <mission> [act], /heal, /arm, /money, /skin, /weapon, /att, /team, /pos, /rec, /recstop, /help", player, 0, 255, 0);
     }else if(cmd=="pos"){
         local ang = 0;
         try { ang = player.Angle; } catch(e) { ang = 0; }
@@ -521,7 +502,131 @@ function onPlayerCommand(player,cmd,text)
             }
             state[player.ID].tempVeh<-CreateVehicle(text.tointeger(),player.World,player.Pos.x+3,player.Pos.y+3,player.Pos.z+1,player.Angle,68,39);
         }
-	}else if(cmd=="uid"){
+    }else if(cmd=="rec"){
+        // /rec <name> [driver|all]  - record THIS player so the npc plugin can replay him.
+        // "driver": be IN the car and driving before this command - the plugin stops the recording the
+        //           moment you leave the vehicle (habi [Tutorial: NPC] #3).
+        // "all":    stand on foot, type this, then walk/board/drive - that file also carries the
+        //           vehicle-request frame, which is what the mission's car needs (recorder type 3).
+        // The exact call and its evidence are in the note above the rec* globals.
+        // No string.split() in this Squirrel (see AdminJson.nut's note): parse "<name> [type]" by hand.
+        local txt  = (text == null) ? "" : text;
+        local sp   = txt.find(" ");
+        local name = (sp == null) ? txt : txt.slice(0, sp);
+        local rest = (sp == null) ? "" : txt.slice(sp + 1);
+        local restLow = rest;
+        try { restLow = rest.tolower(); } catch(e0) {}
+        if(name == ""){
+            MessagePlayer("[#ff0000]usage: /rec <name> [driver|all]  (then drive, then /recstop)", player);
+        }else{
+            // Keep it a plain file name: the plugin makes "<name>.rec" out of it.
+            local okName = true;
+            try { if(name.len() > 40) okName = false; } catch(e1) {}   // .len() may be missing in this lib
+            foreach(bad in [".", "/", "\\", ":", "*", "?", "\"", "<", ">", "|", " "])
+                if(name.find(bad) != null) okName = false;
+            local typeId = recTypeDriver;
+            if(restLow == "all") typeId = recTypeAll;
+
+            if(!okName){
+                MessagePlayer("[#ff0000]bad name: use letters, digits, _ or - only (it becomes <name>.rec)", player);
+            }else if(recIsOn(player) == true){
+                MessagePlayer("[#ffff00]already recording as "+recName+" - /recstop first", player);
+                print("[REC] "+player.Name+" is already recording ("+recName+")");
+            }else{
+                // One documented call. See the api note above the rec* globals.
+                local r = recStd(player, name, typeId);
+                print("[REC] "+player.Name+" /rec "+name+" (type "+typeId+", id "+player.ID+") "
+                    + "StartRecordingPlayerData -> "+r);
+                if(r == "ok" || r == "unverifiable"){
+                    recShape = "StartRecordingPlayerData(player.ID, rectype, name, flags)";
+                    recWho = player;
+                    recName = name;
+                }
+                if(r == "ok"){
+                    MessagePlayer("[#00ff00]recording started as [#ffff00]"+name
+                        + "[#00ff00] (type "+typeId+", id "+player.ID+") - drive now, /recstop when done", player);
+                }else if(r == "unverifiable"){
+                    MessagePlayer("[#ffff00]recording call accepted as "+name
+                        +" but this build answers nothing for IsPlayerRecording", player);
+                }else{
+                    MessagePlayer("[#ff0000]recording call was rejected - see server_log.txt ([REC] lines)", player);
+                }
+                // Where the file goes. The npc plugin writes into the folder named by `recdir` in
+                // server.cfg: unset or 1 -> <server folder>\recordings\, = 2 -> npcscripts\recordings\.
+                // Playback only ever looks in npcscripts\recordings\, so a file from `recordings\`
+                // has to be moved there before an npc can replay it.
+                print("[REC] expected file: <server>\\recordings\\"+name+".rec (server.cfg has no recdir"
+                    + " key -> default 1); with `recdir 2` in server.cfg it would already land in "
+                    + "npcscripts\\recordings\\. Playback reads only npcscripts\\recordings\\, so move it"
+                    + " there if it lands in recordings\\. Check the header: "
+                    + "node -e \"const b=require('fs').readFileSync('recordings/"+name+".rec');"
+                    + "console.log('version',b.readUInt32LE(0),'type',b.readUInt32LE(4),'flags',b.readUInt32LE(8),'bytes',b.length)\""
+                    + " - type must be "+typeId+".");
+            }
+        }
+    }else if(cmd=="recstop"){
+        local on = recIsOn(player);
+        local wasName = recName;
+        local stop = recStop(player);
+        print("[REC] "+player.Name+" /recstop: "+stop+" (IsPlayerRecording was "+on+")");
+        MessagePlayer("[#00ff00]"+stop+" - "+wasName+".rec is in recordings\\ (or npcscripts\\recordings\\"
+            +" with recdir 2); move it to npcscripts\\recordings\\ to replay it", player);
+        recShape = "";
+        recWho = null;
+        recName = "";
+    }else if(cmd=="refcar"){
+        // TEMPORARY reference car: an Admiral (175) dropped at the EXACT pose the mission's own car is
+        // parked in, so the spots beside its seats can be measured in the open world (a custom object only
+        // exists during the scene, so there is nothing else to measure against).
+        // It TRACKS the mission's car: the pose (and model/colours/heading) is read out of the mission's own
+        // table `intro_airport_car` (scripts/missions/intro.nut, dofile'd into the root table) instead of
+        // being copied here, because the mission shifts the whole car-and-men cluster 1.5 m south
+        // (intro_airport_south) AFTER writing that table. A copy of the pre-shift numbers therefore put this
+        // reference car 1.5 m NORTH of the real one, and the walking routes recorded against it were
+        // measured beside the wrong car. Reading the table means the two can never drift apart again.
+        // /refcar again removes it.
+        if("refVeh" in state[player.ID] && state[player.ID].refVeh != null){
+            state[player.ID].refVeh.Delete();
+            state[player.ID].refVeh = null;
+            MessagePlayer("[#00ff00]refcar removed",player);
+        }else{
+            // The pose to use. These are the fallback numbers, i.e. exactly what this command used to
+            // hard-code (the pre-1.5 m-shift pose); they are only used if the mission's table is not
+            // readable, which is reported below.
+            local pose = { x = -1591.560, y = -544.049, z = 14.6985, angle = 1.5707963,
+                           model = 175, c1 = 68, c2 = 39 };
+            // Why the fallback was used, or null when the mission's table was read.
+            local why = null;
+            local carTag = getroottable().rawget("intro_airport_car");
+            if(carTag == null){
+                why = "intro_airport_car is not in the root table (mission file not loaded)";
+            }else{
+                // Read every field BEFORE writing any of them, so a half-readable table cannot leave the
+                // fallback pose with a couple of values swapped in from the mission. A `from` that is not a
+                // Vector has no .x and throws on the first read, which is the `from is not a Vector` case.
+                try {
+                    local from = carTag.from;
+                    local fx = from.x, fy = from.y, fz = from.z;     // throws unless `from` is a Vector
+                    local fa = carTag.angle, fm = carTag.model, fc1 = carTag.c1, fc2 = carTag.c2;
+                    pose.x = fx; pose.y = fy; pose.z = fz;
+                    pose.angle = fa; pose.model = fm; pose.c1 = fc1; pose.c2 = fc2;
+                } catch(e) {
+                    why = "intro_airport_car.from is not a Vector / the table is incomplete ("+e+")";
+                }
+            }
+            if(why != null) print("[REFCAR] fallback pose used: "+why);
+            // CreateVehicle takes the heading in RADIANS (player.Angle is in degrees, which is why the
+            // /car command above spawns cars at an odd angle). The table's `angle` is radians too: due
+            // west = pi/2. Never convert it to degrees here.
+            state[player.ID].refVeh <- CreateVehicle(pose.model,player.World,pose.x,pose.y,pose.z,pose.angle,pose.c1,pose.c2);
+            // What was actually spawned, so the console shows the numbers any measurement is taken against.
+            print("[REFCAR] "+player.Name+" /refcar: admiral at "+fmtPos(Vector(pose.x,pose.y,pose.z))
+                +" angle "+format("%.6f",pose.angle)+" ("+(why == null ? "intro_airport_car" : "FALLBACK")+")");
+            MessagePlayer("[#00ff00]refcar: Admiral at "+fmtPos(Vector(pose.x,pose.y,pose.z))
+                +" facing WEST (pi/2 rad), the pose the mission's car is parked in"
+                +(why == null ? "" : " [FALLBACK: "+why+"]"),player);
+        }
+    }else if(cmd=="uid"){
         MessagePlayer("[#00ff00]your UID: [#ffff00]"+GetUid(player),player);
 	}else if((cmd=="admin" || cmd=="Admin") && state[player.ID].AdminLevel>=1){
         MessagePlayer("[#00ff00]your AdminLevel: [#ffff00]"+state[player.ID].AdminLevel,player);
@@ -592,9 +697,16 @@ function onPlayerCommand(player,cmd,text)
             }
         }
     }else if(cmd=="goto" || cmd=="Goto" || cmd=="tp"){
-        if(!text)
+        local t = (text != null) ? split(text, " ") : null;
+        if(t != null && t.len() >= 3)
         {
-            MessagePlayer("[#ff0000]ERROR:type /goto/tp [playern Name/ID] to teleport to player",player);
+            // authoring helper: /tp <x> <y> <z> drops you on a spot so it can be read back with /pos.
+            // Used to measure actor positions for a mission on ground that has no landmark to go by.
+            player.Pos = Vector(t[0].tofloat(), t[1].tofloat(), t[2].tofloat());
+            MessagePlayer("[#00ff00]moved to "+t[0]+" "+t[1]+" "+t[2],player);
+        }else if(!text)
+        {
+            MessagePlayer("[#ff0000]ERROR: /goto|/tp [player name/ID] or /tp <x> <y> <z>",player);
         }else
         {
             local ply=FindPlayer(text);
@@ -641,11 +753,16 @@ function onPlayerCommand(player,cmd,text)
         }
     }else if(cmd=="home")
     {
-        // Your own world, then the scene plays there with your own set of actors (see cutTick).
-        // Detected by this flag, not by the world number: spawn protection already parks players in
-        // their UniqueWorld for three seconds, so the world alone cannot mean "wants a cutscene".
-        state[player.ID].wantCut = true;
+        // Your own world, then the mission plays there with your own set of actors. The mission is
+        // started through the queue, not on the spot: command handlers run on a deep stack and the
+        // engine calls a mission makes on its first frame do not like that.
         player.World = player.UniqueWorld;
+        startMission(player, "intro");
+    }else if(cmd=="depthtest")
+    {
+        // TEMPORARY: measures how deep the script stack can get before the overloaded engine functions
+        // stop resolving. Delete this branch and depthProbe() once the number is known.
+        depthProbe(1, player);
     }else{
         ClientMessage("The command "+cmd+" is not available, please type /help for a list of commands", player, 255, 0, 0);
     }
@@ -702,18 +819,24 @@ function onPlayerChat( player, message )
  }
 }
 function onPlayerPart(player,reason){
+    // Everything that must happen when a player leaves, in ONE function. Squirrel silently replaces
+    // an earlier definition with a later one of the same name, and a second onPlayerPart used to sit
+    // further down this file: it quietly killed saveDB(), so accounts never persisted.
     if(player.ID in state)
     {
         if(state[player.ID].evade)
         {
             addbanDB(player,"Evade Death",30,"Server");
         }
-        if(player.ID in state){
-            if("tempVeh" in state[player.ID] && state[player.ID].tempVeh != null){
-                state[player.ID].tempVeh.Delete();
-            }
+        if("tempVeh" in state[player.ID] && state[player.ID].tempVeh != null){
+            state[player.ID].tempVeh.Delete();
         }
+
+        // A viewer leaving mid mission takes his own actors, objects and room with him; other viewers
+        // have their own sets, so this must never be a blanket KickAllNPC(). Main owns all of it.
+        stopMission(player);
     }
+    if(freecam.rawin(player.ID)) freecam.rawset(player.ID, null);
     saveDB(player);
 }
 function onPlayerKill( killer, player, reason, bodypart )
@@ -806,21 +929,11 @@ function onClientScriptData(player)
         lastAttacker[hitplayer.ID] <- player.ID;
     }
 }
-function onPlayerPart(player, reason)
-{
-    if(freecam.rawin(player.ID)) freecam.rawset(player.ID, null);
-    // if a cutscene was running, its actors would stay on stage forever
-    if(state.rawin(player.ID) && state[player.ID].cut != null){
-        state[player.ID].cut = null;
-        print("[CUT] "+player.Name+" left during a cutscene, clearing the actors");
-        KickAllNPC();
-    }
-}
 function playerbh(Name)
 {
     local ply=FindPlayer(Name);
-    // do not drag anyone out of their own world while a scene is running in it
-    if(ply != null && (!state.rawin(ply.ID) || state[ply.ID].cut == null)) ply.World=0;
+    // do not drag anyone out of their own world while a mission is running in it
+    if(ply != null && (!state.rawin(ply.ID) || state[ply.ID].mission == null)) ply.World=0;
 }
 function hitinfo(plyID,hitplyID)
 {
@@ -858,23 +971,19 @@ function SendCutsceneCardFade(player)
 
 // ==================== Mission system ====================
 
-// Announce() only works when called from a function defined in this file.
-// Calls made from inside a mission table fail with "No overload matching".
+// Announce() only works when called from a function defined in this file, so nothing outside it calls
+// Announce directly: texts are queued here and sent from missionTick (50 ms, invisible on screen).
 function Msg(player, text)
 {
-    Announce(text, player, 1);
+    state[player.ID].msg = text;
 }
 
+// The only way to start a mission. It queues instead of starting on the spot because command handlers
+// run on a deep stack, and the engine calls a mission's begin() makes (ConnectNPCEx, CreateObject)
+// do not like that; missionTick picks it up one frame later.
 function startMission(player, id)
 {
-    if(!missions.rawin(id)) return;
-
-    state[player.ID].mission = id;
-    state[player.ID].scene   = null;
-    state[player.ID].mTick   = 0;
-
-    missions[id].onStart(player);
-    print("[MISSION] "+player.Name+" start "+id);
+    startQ.append([player.ID, id]);
 }
 
 function endMission(player, success)
@@ -1003,243 +1112,499 @@ function onKeyUp(player, key)
     else if(key == keyShift)  c.boost = false;
 }
 
-// ==================== Cutscene player ====================
-// A cutscene is a table with a shots array:
-//   shots = [ { cam = Vector, look = Vector, dur = seconds, text = subtitle } ]
-// The player is put on the camera position so his own body never shows up in frame.
-// Engine calls live here and in sceneClock, never inside a cutscene callback table.
+// ==================== Engine capability layer ====================
+// A mission owns the *content* (camera work, subtitles, actors, objects, sound, flow). This layer owns
+// the one thing a mission cannot do for itself: calling the engine.
+//
+// Why it has to exist: Sqrat resolves the overloaded engine functions (Announce, CreateObject,
+// ConnectNPCEx, PlaySound ...) against the caller, and a call made from a mission file comes back as
+// "No overload matching this argument list". Missions therefore go through the wrappers below and
+// never call those engine functions directly.
+//
+// Subtitles are queued into state[id].msg and sent from missionTick: the queue costs one tick (50 ms),
+// which is invisible on screen, and it beats betting on Announce working from a mission file.
 
-function PlayCutscene(player, name)
+startQ <- [];      // [playerID, missionName] waiting for the next tick (command handlers are too deep)
+
+function camSet(p, cam, look)   { p.SetCameraPos(cam, look); }
+function camFree(p)             { p.RestoreCamera(); }
+function cineOn(p)              { p.Frozen = true;  p.Widescreen = true;  }
+function cineOff(p)             { p.Frozen = false; p.Widescreen = false; }
+
+// ---- what a mission asks for, and who actually does it ----
+// MISSIONS DO NOT CALL THE ENGINE. They queue a request here; missionTick (the timer callback) then
+// performs it one frame deep. Reason, measured in game: these overloaded engine functions only
+// resolve from a shallow stack. CreateObject worked in the old code five frames down and comes back
+// as "No overload matching this argument list" seven frames down; PlaySoundForPlayer works three
+// frames down while PlaySound(world, sound, pos) failed outright. So the rule is depth, not file:
+// the mission owns the content and the flow, Main owns the calls.
+//
+// Main also keeps the handles, so a mission never tracks its own objects and stopMission() deletes
+// everything it asked for.
+
+engQ <- [];
+
+function qRoom(p, off)                 { engQ.append(["room",  p.ID, off]); }
+function qObj(p, tag, model, pos, quat){ engQ.append(["obj",   p.ID, tag, model, pos, quat]); }
+function qMove(p, tag, pos, ms)        { engQ.append(["move",  p.ID, tag, pos, ms]); }
+function qRot(p, tag, quat)            { engQ.append(["rot",   p.ID, tag, quat]); }
+// The npc script defaults to the shared actor script; an act can name its own (the driver replays a
+// recording instead, see npcscripts/ken_driver.nut).
+function qActor(p, nm, pos, angle, skin, pose, look) { engQ.append(["actor", p.ID, nm, pos, angle, skin, pose, look, null]); }
+function qActorScript(p, nm, pos, angle, skin, pose, look, script) { engQ.append(["actor", p.ID, nm, pos, angle, skin, pose, look, script]); }
+function qActorPos(p, nm, pos)         { engQ.append(["apos",  p.ID, nm, pos]); }
+function qActorGone(p, nm)             { engQ.append(["agone", p.ID, nm]); }
+function qCar(p, model, pos, angle, c1, c2) { engQ.append(["car",    p.ID, model, pos, angle, c1, c2]); }
+function qCarPos(p, pos)               { engQ.append(["carpos", p.ID, pos]); }
+function qPutIn(p, nm, slot)           { engQ.append(["putin",  p.ID, nm, slot]); }
+function qWep(p, nm)                   { engQ.append(["wep",    p.ID, nm]); }
+function qSound(p, id)                 { engQ.append(["sound", p.ID, id]); }
+function qCard(p, file, hold, fade)    { engQ.append(["card",  p.ID, file, hold, fade]); }
+function qCam(p, cam, look)            { engQ.append(["cam",   p.ID, cam, look]); }
+function qBody(p, pos)                 { engQ.append(["body",  p.ID, pos]); }
+function qAnim(p, group, id)           { engQ.append(["anim",  p.ID, group, id]); }
+function qClear(p)                     { engQ.append(["clear", p.ID]); }
+function qEnd(p)                       { engQ.append(["end",   p.ID]); }
+function qProbe(p, cam, look)          { engQ.append(["probe", p.ID, cam, look]); }
+
+// The performers. Only ever called from engRun(), i.e. one frame under the timer callback.
+function objNew(model, wd, pos) { return CreateObject(model, wd, pos, 255); }
+function objRot(o, quat)        { o.RotateTo(quat, 0); }
+function objGone(o)             { o.Delete(); }
+
+// Object.MoveTo is overloaded too and no reliable source documents its argument list: try the Vector
+// form, then the numeric one, and if neither works say so ONCE - a mover that throws every tick would
+// flood the log while the object simply stands still.
+moverBad <- false;
+vehBad   <- false;
+wepTold  <- false;      // the weapon-clearing call only reports which shape works, once
+
+// Actor names the engine has actually accepted into a vehicle. A mission must be able to tell whether a
+// put-in has already happened, because RE-SENDING it makes the occupant climb out and get back in: that
+// was a visible bug, and there is no reliable way to ask an NPC which seat he is in (Vehicle and
+// VehicleSlot both read as nothing useful for an npc).
+putInOk <- {};
+function wasPutIn(nm) { return putInOk.rawin(nm); }
+
+// ==================== /rec, /recstop: recording a real player's driving ====================
+// Why these exist: the npc plugin can only replay a DRIVER recording that was made by a real player
+// driving in game, so the route for the cutscene's car has to be recorded here, by hand (see
+// _docs/KEN-DRIVE-NOTES.md and _docs/REC-API-EVIDENCE.md).
+//
+// THE API (settled, no more guessing). Two independent sources agree:
+//  * _docs/_npc/rel006/.../npcscript functions.txt:312-313 (the plugin's own function list)
+//      [bool]StartRecordingPlayerData( [integer] playerid, [integer] recordtype=3, [string]recordname="", [integer]flags=60 )
+//      [bool]StopRecordingPlayerData( [integer] playerid )
+//    and line 333 [bool/throwerror-invalid-playerid]IsPlayerRecording( [integer] playerid ).
+//  * habi (the plugin author) posts the exact working gamemode code in his own tutorial
+//    "[Tutorial: NPC] #2 Recording player actions":
+//      s = StartRecordingPlayerData(player.ID, PLAYER_RECORDING_TYPE_ONFOOT, text);   // onfoot
+//      s = StartRecordingPlayerData(player.ID, PLAYER_RECORDING_TYPE_DRIVER, text);   // in a car
+//      s = StopRecordingPlayerData(player.ID);
+//    (forum.vc-mp.org topic 8803, msg 52127; #3, topic 8806, adds "You must be in a vehicle when the
+//    recording starts. The recording will not continue if you exit vehicle.")
+// So: they are GLOBALS in the gamemode script (like ConnectNPC/IsPlayerNPC), the first argument is the
+// numeric player id (player.ID), and the file name is a plain string WITHOUT ".rec".
+//
+// What the shipped binary confirms (plugins/npc04rel64.dll):
+//  * functions present: StartRecordingPlayerData / StopRecordingPlayerData / IsPlayerRecording /
+//    StartRecordingAllPlayerData / StopRecordingAllPlayerData / PutServerInRecordingMode /
+//    StopServerInRecordingMode / IsServerInRecordingMode (strings near file offsets 0x3e6d0-0x3e770).
+//  * it type-checks the id itself - "Error: plrid not provided", "Player not connected",
+//    "Error getting ID of player instance" - then "The recname parameter must be string",
+//    "The flags parameter must be integer", "The rectype parameter must be integer"; it validates the
+//    type with "Error: recordtype must be %u, %u or %u" before "Error: Could not start recording for % u"
+//    / "Success. Recording Started for player %u". These are the server-side argument checks.
+//  * the CPlayer METHOD form does not exist: an earlier /rec attempt calling
+//    player.StartRecordingPlayerData(...) failed with Squirrel's "Member Variable not found".
+//
+// Type / filter ids (docs lines 343-345, same on both sides):
+//   PLAYER_RECORDING_TYPE_ONFOOT 1, PLAYER_RECORDING_TYPE_DRIVER 2, PLAYER_RECORDING_TYPE_ALL 3
+//   REC_* filters: REC_ONFOOT_NORMAL 4 | REC_ONFOOT_AIM 8 | REC_VEHICLE_DRIVER 16 | REC_VEHICLE_PASSENGER 32
+//   -> REC_STANDARD = 60 (the plugin's own default when flags is omitted).
+recTypeDriver <- 2;                    // PLAYER_RECORDING_TYPE_DRIVER
+recTypeAll    <- 3;                    // PLAYER_RECORDING_TYPE_ALL
+recFilterStd  <- 60;                   // REC_STANDARD
+recShape      <- "";                   // diagnostic: which call shape started the recording
+recWho        <- null;                 // the player object /rec started a recording for
+recName       <- "";                   // and its recording name
+recCalls      <- 0;                    // diagnostic: how many calls were needed
+
+// IsPlayerRecording(playerid) - global, integer id (docs line 333). Tried as the id form first, then the
+// old method form purely so an unexpected registration still gets reported instead of crashing /rec.
+// Returns true/false, or null when neither shape exists.
+function recIsOn(p)
 {
-    if(!cutscenes.rawin(name)) return;
-
-    state[player.ID].cut     = name;
-    state[player.ID].cutShot = -1;
-    state[player.ID].mTick   = 0;
-    state[player.ID].keepPos = player.Pos;
-    state[player.ID].subIdx  = 0;
-    state[player.ID].cutT    = 0.0;
-    // Master clock for the scene. The 50ms timer is only a refresh rate, never the timebase:
-    // accumulating 0.05 per tick made the whole scene run slow whenever the timer fired late,
-    // which left the subtitles trailing behind the cutscene audio and the shots stretched.
-    // A scene may ask for a pre-roll ("delay", seconds). It is done by pushing the start stamp
-    // into the future: cutT clamps at zero, so shot 1 is held still while the title card is up
-    // and the room and the actors finish streaming in, and the audio starts exactly when the
-    // clock does (see cutTick). The original hides that moment behind a black fade; VC-MP has
-    // no screen fade, so this is the server side equivalent.
-    local c   = cutscenes[name];
-    local pre = c.rawin("delay") ? (c.delay * 1000).tointeger() : 0;
-    state[player.ID].cutStart   = GetTickCount() + pre;
-    state[player.ID].cutCaption = false;
-    state[player.ID].cutAudio   = false;
-    // A scene with a "wait" list (actor names) holds the pre-roll until every actor really
-    // exists. The npcclient processes take seconds to spawn, so a fixed hold either shows the
-    // pop-in or wastes time. The client keeps the card up to waitMax and we tell it when to fade
-    // (typecode 2), so the card, the first frame of the scene and the audio start together.
-    state[player.ID].cutWaiting = c.rawin("wait");
-    state[player.ID].shotStart = 0.0;
-    state[player.ID].shotLen   = 1.0;
-    state[player.ID].camA = null; state[player.ID].camB = null;
-    state[player.ID].lookA = null; state[player.ID].lookB = null;
-
-    player.Frozen     = true;
-    player.Widescreen = true;
-
-    // Keep the game's sound channel busy for the whole pre-roll with a silent sound. VC starts an
-    // interior's ambience only when nothing else is streaming as the room loads: with a silent gap
-    // there the hotel music starts and then can never be stopped or masked, which is exactly what
-    // happened once the title card added a 5 second silent pre-roll.
-    if(c.rawin("preAudio")) PlaySoundForPlayer(player, c.preAudio);
-    state[player.ID].preTick = GetTickCount();
-
-    // The scene plays in the player's own world (see /home), so give him his own copy of the room
-    // there and remember the objects so they can be deleted when his scene ends. World 0 keeps its
-    // permanent copy: that one is the floor the actors' own npcclient processes stand on.
-    local wd = 0;
-    try { wd = player.World; } catch(e) { wd = 0; }
-    state[player.ID].cutWorld = wd;
-    if("roomOffset" in getroottable()){
-        roomSink = [];
-        roomReplica(roomOffset, wd);
-        objcrt(wd);
-        state[player.ID].cutRoom = roomSink;
-        roomSink = null;
-    }
-
-    c.onStart(player);
-
-    // The original opens on a black title card and fades into the scene - the same card is what
-    // hides the actors and the room streaming in. The client draws it (store/script/main.nut):
-    // the sprite at "card", held "cardHold" ms with the scene clock frozen, then faded out over
-    // "cardFade" ms while the scene and its audio start (delay = cardHold).
-    if(c.rawin("card"))
-        SendCutsceneCard(player, c.card,
-                         c.rawin("wait") ? (c.rawin("waitMax") ? c.waitMax : 15000)
-                                         : (c.rawin("cardHold") ? c.cardHold : 500),
-                         c.rawin("cardFade") ? c.cardFade : 2000);
+    try { return (IsPlayerRecording(p.ID) == true); } catch(e) {}
+    try { return (p.IsPlayerRecording() == true); } catch(e2) {}
+    return null;
 }
 
-function endCutscene(player)
+// ONE call, the documented one, with the documented argument types:
+//   StartRecordingPlayerData( [integer] playerid, [integer] recordtype, [string] recordname, [integer] flags )
+// p.ID is an integer (VC:MP Player member), the type id is an integer and the name is a string without
+// ".rec". flags = 60 = REC_STANDARD, the plugin's own default, so the recording carries the standard
+// onfoot/vehicle event set.
+// Returns "ok" (started and IsPlayerRecording agrees), "unverifiable" (the call went through but this
+// build answers nothing for IsPlayerRecording), "no-recording", or "threw".
+function recStd(p, name, typeId)
 {
-    local c = cutscenes[state[player.ID].cut];
-    if(c != null && c.rawin("onEnd")) c.onEnd(player);
-
-    // tear down this player's own room and his own actors; other viewers have their own sets
-    if(state[player.ID].cutRoom != null){
-        foreach(o in state[player.ID].cutRoom) o.Delete();
-        state[player.ID].cutRoom = null;
+    recCalls++;
+    local err = "";
+    try { StartRecordingPlayerData(p.ID, typeId, name, recFilterStd); }
+    catch(e) {
+        err = e;
+        // ONE fallback, only for a genuinely different registration (a Player-instance method taking the
+        // name first). It is NOT a guess at the argument order - that is settled above.
+        try { p.StartRecordingPlayerData(name, typeId, recFilterStd); err = ""; }
+        catch(e2) { err = err+" | fallback: "+e2; }
     }
-    if(state[player.ID].cutActors != null){
-        foreach(n in state[player.ID].cutActors){
-            local np = FindPlayer(n);
+    if(err != ""){ print("[REC] rejected StartRecordingPlayerData(player.ID="+p.ID+", "+typeId+", \""+name+"\", "+recFilterStd+"): "+err); return "threw"; }
+    local on = recIsOn(p);
+    if(on == true)  return "ok";
+    if(on == null)  return "unverifiable";     // the call went through but IsPlayerRecording is missing
+    return "no-recording";
+}
+
+// StopRecordingPlayerData(playerid) - global, integer id. Returns a one-line report for player and log.
+function recStop(p)
+{
+    local errors = "";
+    try { StopRecordingPlayerData(p.ID); return "stop via StopRecordingPlayerData("+p.ID+")"; }
+    catch(e) { errors += e+" / "; }
+    try { p.StopRecordingPlayerData(); return "stop via player.StopRecordingPlayerData()"; }
+    catch(e2) { errors += e2; }
+    return "STOP FAILED: "+errors;
+}
+function objMove(o, pos, ms)
+{
+    if(moverBad) return;
+    try { o.MoveTo(pos, ms); return; } catch(e) {}
+    try { o.MoveTo(pos.x, pos.y, pos.z, ms); return; } catch(e2) {
+        moverBad = true;
+        print("[MOV] Object.MoveTo rejected both argument lists: " + e2);
+    }
+}
+
+// Actors (NPCs). Never put a '#' in the name: VC-MP rewrites it to '_' and FindPlayer never matches.
+// lookAt is optional - when given, the actor turns to face that point.
+// The pose may carry a silence time ("stand@14.0"): the actor stops sending state that many seconds after
+// spawn, which is what lets the server seat him and keep him seated. See npcscripts/sonny_actor.nut.
+//
+// The LAST vararg is the engine's id of the car this act uses, or -1 when there is none. It travels as a
+// plain string because ConnectNPCEx's trailing arguments are what the npc client forwards to its own
+// script: npcclient is started with -w "<arg> ..." and SquirrelVM.cpp::call_OnNPCScriptLoad turns those
+// into the 0-based array the script sees. So pose = params[0], the three look-at values = params[1..3]
+// and this id = params[4] - which is the slot npcscripts/ken_driver.nut reads for its one-shot
+// EnterVehicle() test. No script is obliged to look at it (every other npc script ignores it).
+function actorNew(nm, pos, angle, skin, pose, lookAt, script, vehId)
+{
+    local sc = (script != null) ? script : "sonny_actor.nut";
+    local vs = (vehId == null) ? "-1" : vehId.tostring();
+    if(lookAt != null)
+        ConnectNPCEx(nm, pos, angle, skin, 19, 0, sc, false, "", "",
+                     pose, lookAt.x.tostring(), lookAt.y.tostring(), lookAt.z.tostring(), vs);
+    else
+        ConnectNPCEx(nm, pos, angle, skin, 19, 0, sc, false, "", "",
+                     pose, "0", "0", "0", vs);
+}
+
+// Sound, PER PLAYER and not by world. Every viewer watches a mission in his own world, so there is
+// nobody else it could be meant for, and PlaySoundForPlayer is the form this build accepts - the
+// world + position form that used to sit here came back as "No overload matching this argument list"
+// in 0.4 rel006. (The world form is PlaySoundForWorld(world, sound): two arguments, no position.)
+function sndPlay(p, id) { PlaySoundForPlayer(p, id); }
+
+// Drains the queue. Every engine call in here sits one frame under missionTick.
+function engRun()
+{
+    while(engQ.len() > 0)
+    {
+        local e = engQ.remove(0);
+        if(!state.rawin(e[1])) continue;
+        local st = state[e[1]];
+        local p  = FindPlayer(e[1]);
+        if(p == null) continue;
+        local wd = st.missionWorld;
+        local k  = e[0];
+
+        if(k == "room"){
+            st.missionRoom = roomBuild(e[2], wd);
+        }else if(k == "obj"){
+            local o = objNew(e[3], wd, e[4]);
+            if(e[5] != null) objRot(o, e[5]);
+            st.missionObjs.rawset(e[2], o);
+        }else if(k == "move"){
+            if(st.missionObjs.rawin(e[2])) objMove(st.missionObjs[e[2]], e[3], e[4]);
+        }else if(k == "rot"){
+            if(st.missionObjs.rawin(e[2])) objRot(st.missionObjs[e[2]], e[3]);
+        }else if(k == "actor"){
+            st.missionActors.append(e[2]);
+            // The car this act queued, for the actor scripts that may try to get in by themselves (the npc
+            // side calls EnterVehicle with it - see actorNew). Read here and not handed in by the mission:
+            // the "car" queue entry is what creates the vehicle, and a mission must not have to know an
+            // engine id. -1 means "this act has no car", which the npc script reads as "nothing to try".
+            local vehId = -1;
+            if(st.missionVeh != null){
+                try { vehId = st.missionVeh.ID; }
+                catch(e0) { vehId = -1; print("[CAR] Vehicle.ID unreadable for "+e[2]+": "+e0); }
+            }
+            actorNew(e[2], e[3], e[4], e[5], e[6], e[7], e[8], vehId);
+        }else if(k == "apos"){
+            local np = FindPlayer(e[2]);
+            if(np != null) np.Pos = e[3];
+        }else if(k == "agone"){
+            local np = FindPlayer(e[2]);
             if(np != null) np.Kick();
+        }else if(k == "car"){
+            // a REAL vehicle, not a custom object: the game's own vehicle models are handled natively
+            // (no RenderWare version question, no burying, no reliance on Object.MoveTo). Note the
+            // heading is in RADIANS here, unlike Player.Angle.
+            st.missionVeh = CreateVehicle(e[2], wd, e[3].x, e[3].y, e[3].z, e[4], e[5], e[6]);
+        }else if(k == "carpos"){
+            if(st.missionVeh != null){
+                try { st.missionVeh.Pos = e[2]; }
+                catch(e3) { if(!vehBad){ vehBad = true; print("[CAR] Vehicle.Pos is not writable: "+e3); } }
+            }
+        }else if(k == "putin"){
+            // PutInVehicleSlot is a METHOD, not a global: calling it as a global comes back as
+            // "the index 'PutInVehicleSlot' does not exist". Which class owns it is not documented, so
+            // both are tried and whichever worked is what gets reported.
+            local np = FindPlayer(e[2]);
+            if(np != null && st.missionVeh != null){
+                local done = false;
+                try { np.PutInVehicleSlot(st.missionVeh, e[3]); done = true; }
+                catch(e4) {
+                    try { st.missionVeh.PutInVehicleSlot(np, e[3]); done = true; }
+                    catch(e5) { print("[CAR] PutInVehicleSlot rejected on both Player and Vehicle: "+e4+" / "+e5); }
+                }
+                if(done){
+                    putInOk.rawset(e[2], true);   // never re-sent: a second call makes him climb out again
+                    // Report what the engine made of it: the seat asked for and the seat it reports are
+                    // not always the same number, and a second actor landing in the same seat is one
+                    // that would look like he never got in at all.
+                    local got = "?";
+                    try { got = np.VehicleSlot.tostring(); } catch(e6) { got = "unreadable"; }
+                    local inv = "?";
+                    try { inv = (np.Vehicle != null) ? "yes" : "no"; } catch(e7) { inv = "unreadable"; }
+                    print("[CAR] "+e[2]+" -> asked seat "+e[3]+", VehicleSlot="+got+", inVehicle="+inv);
+                }
+            }
+        }else if(k == "wep"){
+            // Empty hands, from the server. The spawn class gives every actor a shotgun and the npc side
+            // normally empties them itself (sonny_actor.nut Fists), but an actor who is put into a car
+            // stops talking on purpose - otherwise his on-foot packet pulls him back out of the seat - so
+            // nothing ever clears it and Ken drives with the shotgun on his lap. Which weapon call this
+            // build accepts is not documented, so all the shapes are tried and the one that works is
+            // printed once.
+            local np = FindPlayer(e[2]);
+            if(np != null){
+                if(!wepTold){
+                    try { np.SetWeapon(0, 0);  print("[CAR] "+e[2]+" weapon cleared via Player.SetWeapon"); wepTold = true; }
+                    catch(e8) {
+                        try { SetWeapon(np, 0, 0);  print("[CAR] "+e[2]+" weapon cleared via SetWeapon"); wepTold = true; }
+                        catch(e9) {
+                            try { np.RemoveWeapon(0); print("[CAR] "+e[2]+" weapon cleared via Player.RemoveWeapon"); wepTold = true; }
+                            catch(e10) {
+                                try { RemoveWeapon(np, 0); print("[CAR] "+e[2]+" weapon cleared via RemoveWeapon"); wepTold = true; }
+                                catch(e11){ print("[CAR] no weapon call worked for "+e[2]+": "+e11); wepTold = true; }
+                            }
+                        }
+                    }
+                }else{
+                    // already know which shape works: same chain, silently
+                    try { np.SetWeapon(0, 0); }
+                    catch(e12){ try { SetWeapon(np, 0, 0); } catch(e13){ try { np.RemoveWeapon(0); } catch(e14){ try { RemoveWeapon(np, 0); } catch(e15){} } } }
+                }
+            }
+        }else if(k == "sound"){
+            sndPlay(p, e[2]);
+        }else if(k == "card"){
+            SendCutsceneCard(p, e[2], e[3], e[4]);
+        }else if(k == "cam"){
+            camSet(p, e[2], e[3]);
+        }else if(k == "body"){
+            p.Pos = e[2];
+        }else if(k == "anim"){
+            foreach(n in st.missionActors){
+                local np = FindPlayer(n);
+                if(np != null) np.SetAnim(e[2], e[3]);
+            }
+        }else if(k == "clear"){
+            missionClearEngine(st);
+        }else if(k == "end"){
+            stopMission(p);
+        }else if(k == "probe"){
+            // TEMPORARY placement probe (see mission_intro_tick). Wrapped because Object.Pos and
+            // Player.Pos are the two things here that could be missing, and an error in engRun would
+            // not be caught by the tick's own handler.
+            try {
+                print("[PROBE] "+p.Name+" cam "+fmtPos(e[2])+" aim "+fmtPos(e[3])+" world "+p.World);
+                foreach(n in st.missionActors){
+                    local np = FindPlayer(n);
+                    if(np != null) print("[PROBE] npc "+n+" at "+fmtPos(np.Pos));
+                }
+                foreach(tag, o in st.missionObjs) print("[PROBE] obj "+tag+" at "+fmtPos(o.Pos));
+            } catch(e2) {
+                print("[PROBE] failed: "+e2);
+            }
         }
-        state[player.ID].cutActors = null;
     }
-
-    player.RestoreCamera();
-    player.Widescreen = false;
-    player.Frozen     = false;
-    player.World      = 0;      // the scene ran in his own world (see /home); back to the normal one
-    if(state[player.ID].keepPos != null) player.Pos = state[player.ID].keepPos;
-
-    state[player.ID].cut     = null;
-    state[player.ID].cutShot = -1;
-    state[player.ID].mTick   = 0;
-    state[player.ID].keepPos = null;
-    state[player.ID].camA = null; state[player.ID].camB = null;
-    state[player.ID].lookA = null; state[player.ID].lookB = null;
 }
 
-// Cutscene runner on a 50ms clock: that is fine enough for shot cuts and for subtitles
-// that follow the original recording second by second. Inside a shot the camera is a pure
-// dolly: it moves from cam to cam2 while the aim direction stays locked.
-function cutTick()
+function fmtPos(v) { return format("%.2f,%.2f,%.2f", v.x, v.y, v.z); }
+
+// Everything the engine built for a player's mission: his actors, his objects, his copy of the room.
+// Main owns all of it, which is why a mission never even sees a handle.
+function missionClearEngine(st)
 {
+    foreach(n in st.missionActors){
+        local np = FindPlayer(n);
+        if(np != null) np.Kick();
+    }
+    st.missionActors = [];
+    foreach(tag, o in st.missionObjs) objGone(o);
+    st.missionObjs = {};
+    if(st.missionRoom != null){
+        foreach(o in st.missionRoom) objGone(o);
+        st.missionRoom = null;
+    }
+    if(st.missionVeh != null){
+        st.missionVeh.Delete();
+        st.missionVeh = null;
+    }
+}
+
+// The one thing /m may pass to a mission besides its name: which act to open with. It is a ROOT
+// variable (not a mission API) so Main still knows nothing about any mission's internals - it only
+// sets a number here; a mission that cares reads it once inside its own begin() and clears it.
+// Name is prefixed `mission` to keep it out of the way of the engine's own globals; the only writer
+// is the /m handler and the only reader is mission_intro_begin (scripts/missions/intro.nut).
+// Do not index this with [] when it may be absent: that throws, see the rawget note below.
+missionStartAct <- null;
+
+// ==================== missionTick, 50 ms ====================
+// A mission is a set of plain global functions named mission_<name>_begin / _tick / _stop. They are
+// looked up on the ROOT table and never through a table member: a mission must not be called as
+// table.member(..), which is another way the engine's overloaded calls stop resolving.
+//
+// Everything a mission asks the engine to do goes through engQ and is performed here, at the top of
+// the stack (see the note above engQ). Order per tick:
+//   1) release the queued start requests
+//   2) send the queued subtitles
+//   3) tick whatever mission that player is running
+//   4) perform the engine work the missions queued
+function missionTick()
+{
+    while(startQ.len() > 0){
+        local q = startQ.remove(0);
+        local p = FindPlayer(q[0]);
+        if(p == null) continue;
+        // rawget, not []: indexing the root table for a name that is not there THROWS, so a mistyped
+        // mission name used to kill the tick outright - which is exactly what "/m ken_01_an_old_friend"
+        // did after that mission was renamed to `intro` ("AN ERROR HAS OCCURED [the index
+        // 'mission_ken_01_an_old_friend_begin' does not exist]"). A wrong name should do nothing.
+        local begin = getroottable().rawget("mission_"+q[1]+"_begin");
+        if(begin == null) continue;
+        state[p.ID].mission = q[1];
+        state[p.ID].scene   = null;
+        state[p.ID].mTick   = 0;
+        local wd = 0;
+        try { wd = p.World; } catch(e) { wd = 0; }
+        state[p.ID].missionWorld = wd;
+        cineOn(p);                       // frozen + widescreen: the mission is a film, not gameplay
+        // A begin() that says false refused to start (mission_intro_begin does that for an act number
+        // that is out of range): put the film back and take the name off him. The mission has already
+        // reported why, and it did not set up any of its own state, so there is nothing to stop.
+        local ok = true;
+        try { ok = begin(p); } catch(e) { ok = false; print("[MISSION] "+q[1]+" begin failed: "+e); }
+        // Whatever happened the pending act is used up; never carry it into the next start.
+        getroottable().rawdelete("missionStartAct");
+        if(ok == false){
+            state[p.ID].mission = null;
+            cineOff(p);
+            p.World = wd;
+            print("[MISSION] "+p.Name+" start "+q[1]+" refused");
+            continue;
+        }
+        print("[MISSION] "+p.Name+" start "+q[1]);
+    }
+
     foreach(id, st in state)
     {
         local p = FindPlayer(id);
         if(p == null) continue;
 
-        if(st.cut == null){
-            if(st.wantCut){
-                st.wantCut = false;
-                PlayCutscene(p, "sonny_office");   // plays in the player's own world (see /home)
-            }
-            continue;
-        }
+        if(st.msg != null){ Announce(st.msg, p, 1); st.msg = null; }
 
-        local c = cutscenes[st.cut];
-        if(c == null){ st.cut = null; continue; }
+        if(st.mission == null) continue;
 
-        // The actors are this player's own set, and they have to sit in his world or he cannot see
-        // them. Their own npcclient processes keep running in world 0, on the world 0 copy of the
-        // room, which is what keeps them standing.
-        local wd = st.cutWorld;
-        if(st.cutActors != null) foreach(n in st.cutActors){
+        // Keep the actors in the viewer's world - their own npcclient process stays in world 0, on the
+        // world 0 copy of the room, which is what keeps them standing.
+        // NEVER for an actor who is in a vehicle: assigning World re-instances the ped, and that is what
+        // pulled the seated men out again (the log: Ken was in seat 0 at 2.5 s and back on the pavement by
+        // 24 s) and what made them flicker - the client keeps reporting world 0, so this line wrote the
+        // world again on nearly every tick.
+        foreach(n in st.missionActors){
             local np = FindPlayer(n);
-            if(np != null && np.World != wd) np.World = wd;
+            if(np == null) continue;
+            local vs = -1;
+            try { vs = np.VehicleSlot; } catch(e) { vs = -1; }
+            if(vs < 0 && np.World != st.missionWorld) np.World = st.missionWorld;
         }
 
-        // The start stamp can be missing if the script was reloaded while a scene was already
-        // running (the old PlayCutscene never wrote it). Rebuild it instead of erroring every
-        // tick; the scene then simply restarts from its first line.
-        if(!st.rawin("cutStart")){
-            st.cutStart <- GetTickCount();   // newslot: `=` cannot create the slot
-            st.cutT     = 0.0;
-            st.subIdx   = 0;
-            st.cutShot  = -1;
-        }
-
-        local dt = GetTickCount() - st.cutStart;
-        if(dt < 0) dt = 0;                  // guard the 32 bit millisecond counter wrapping
-        st.cutT = dt / 1000.0;
-
-        // pre-roll: the title card goes up on the first frame, the audio starts when the clock
-        // reaches zero. Both are data on the scene table, because Announce cannot be called
-        // from inside a scene callback.
-        if(!st.cutCaption){
-            // text fallback for a scene that has no title card image
-            if(!c.rawin("card") && c.rawin("caption")) Announce(c.caption, p, 3);
-            st.cutCaption = true;
-        }
-        // wait for the actors before letting the scene run: everything stays frozen (cutT = 0)
-        // until every name in the scene's "wait" list exists, but at least for "delay" and at
-        // most for "waitMax" milliseconds. Then the card is told to fade and the clock is rebased
-        // so the first frame of the scene, the fade and the audio all begin on the same tick.
-        if(st.cutWaiting){
-            local ready = true;
-            foreach(n in c.wait) if(FindPlayer(n) == null){ ready = false; break; }
-            local dpre   = c.rawin("delay") ? (c.delay * 1000).tointeger() : 0;
-            local waited = GetTickCount() - (st.cutStart - dpre);
-            local cap    = c.rawin("waitMax") ? c.waitMax : 15000;
-            if((ready && GetTickCount() >= st.cutStart) || waited >= cap){
-                print("[CUT] "+st.cut+": actors ready after "+waited+" ms, scene starts");
-                st.cutStart   = GetTickCount();
-                st.cutWaiting = false;
-                SendCutsceneCardFade(p);
-            }
-            st.cutT = 0.0;
-        }
-
-        if(!st.cutAudio && !st.cutWaiting && GetTickCount() >= st.cutStart){
-            // explicit world: the scene plays in the player's own one (verified working off world 0)
-            if(c.rawin("audio")) PlaySound(wd, c.audio, p.Pos);
-            st.cutAudio = true;
-        }
-
-        // keep holding the game's sound channel for the whole pre-roll, so the interior ambience
-        // never gets its chance to start while the room loads. The hold sound is short silence, so
-        // it is re-triggered; a longer silent file in store/sounds/ would make this unnecessary.
-        if(c.rawin("preAudio") && GetTickCount() < st.cutStart){
-            if(GetTickCount() - st.preTick >= 900){
-                st.preTick = GetTickCount();
-                PlaySoundForPlayer(p, c.preAudio);
-            }
-        }
-
-        local acc = 0.0, idx = -1;
-        for(local i = 0; i < c.shots.len(); ++i){
-            local d = c.shots[i].dur.tofloat();
-            if(st.cutT < acc + d){ idx = i; st.shotStart = acc; st.shotLen = d; break; }
-            acc += d;
-        }
-        if(idx < 0){ endCutscene(p); continue; }
-
-        if(idx != st.cutShot){
-            st.cutShot = idx;
-            local s = c.shots[idx];
-            st.camA  = s.cam;
-            st.lookA = s.look;
-            if(s.rawin("cam2")) st.camB = s.cam2; else st.camB = s.cam;
-        }
-
-        local k = (st.cutT - st.shotStart) / st.shotLen;
-        if(k > 1.0) k = 1.0;
-        local cam = Vector(st.camA.x + (st.camB.x - st.camA.x)*k, st.camA.y + (st.camB.y - st.camA.y)*k, st.camA.z + (st.camB.z - st.camA.z)*k);
-        local dx = st.lookA.x - st.camA.x, dy = st.lookA.y - st.camA.y, dz = st.lookA.z - st.camA.z;
-        local look = Vector(cam.x + dx, cam.y + dy, cam.z + dz);
-
-        // Where the invisible body is parked. It has to stay close enough for the room and the
-        // actors to keep streaming (they vanish if we park far away), but where it sits also decides
-        // which ambience the game picks: parked inside the hotel room, VC treats us as being in that
-        // interior and plays the loud Audio/Hotel.mp3, which no server call can stop or mask.
-        // A scene can push the body out of the interior volume with "bodyOffset"; the default keeps
-        // it just behind and below the camera.
-        local bo = c.rawin("bodyOffset") ? c.bodyOffset : Vector(0.0, 0.0, 0.0);
-        p.Pos = Vector(cam.x + (cam.x - look.x)*0.5 + bo.x,
-                       cam.y + (cam.y - look.y)*0.5 + bo.y,
-                       cam.z - 2.0 + bo.z);
-        p.SetCameraPos(cam, look);
-
-        // subtitles have their own timeline, several lines can fall inside one shot
-        if(c.rawin("subs")){
-            while(st.subIdx < c.subs.len() && c.subs[st.subIdx].t <= st.cutT){
-                Announce(c.subs[st.subIdx].text, p, 1);
-                st.subIdx++;
-            }
+        local tick = getroottable()["mission_"+st.mission+"_tick"];
+        if(tick == null) continue;
+        // A tick that throws would fire again 50 ms later, flood the log and quietly leave the player
+        // stuck in a scene that never advances. Report it once and stop that mission cleanly.
+        try { tick(p); }
+        catch(e){
+            print("[MISSION] "+st.mission+" tick failed, stopping it: "+e);
+            stopMission(p);
         }
     }
+
+    engRun();
+}
+
+// Main owns the engine side of a mission: its room, its objects, its actors, the camera, the world the
+// player was moved to and the position to put him back at. The mission clears its own bookkeeping in
+// mission_<name>_stop, which runs at the end of this.
+function stopMission(player)
+{
+    if(player == null || !(player.ID in state)) return;
+    local st = state[player.ID];
+
+    missionClearEngine(st);
+
+    camFree(player);
+    cineOff(player);
+    player.World = 0;                                  // the mission ran in his own world (see /home)
+    if(st.missionKeepPos != null) player.Pos = st.missionKeepPos;
+    st.missionKeepPos = null;
+
+    local name = st.mission;
+    if(name != null){
+        local stop = getroottable()["mission_"+name+"_stop"];
+        if(stop != null) try { stop(player); } catch(e) {}
+    }
+    st.mission = null;
+}
+// TEMPORARY diagnostic for /depthtest. Adds one script frame per level and tries two engine calls of
+// different arity there, which separates the two candidate explanations:
+//   * if BOTH start failing at the same depth, it is purely the depth (a plain limit);
+//   * if the 4 argument call fails earlier than the 2 argument one, it is stack pressure - the
+//     overload matcher needs room for its own temporaries, and a deeper stack leaves it less.
+// Called straight from the command handler: at level 1 the calls sit 3 script frames down
+// (command dispatcher -> onPlayerCommand -> depthProbe -> engine).
+function depthProbe(level, player)
+{
+    local a = true, b = true;
+    try { local o = CreateObject(318, 0, Vector(0.0, 0.0, 3.0), 255); o.Delete(); } catch(e) { a = false; }
+    try { PlaySoundForPlayer(player, 50000); } catch(e) { b = false; }
+    print("[DEPTH] level " + level + " (" + (level + 2) + " frames): CreateObject(4) " +
+          (a ? "OK" : "FAIL") + ", PlaySoundForPlayer(2) " + (b ? "OK" : "FAIL"));
+    if(level < 12) depthProbe(level + 1, player);
 }
 
 function sceneClock()

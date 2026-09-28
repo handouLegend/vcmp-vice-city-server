@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="ASCII"?>
+<objectlist>
+	<object id="700">
+		<flags value="0" />
+		<texture path="CSsonny.txd" />
+		<collision type="autogenerate" />
+		<model path="CSsonny.dff" distance="350" />
+	</object>
+	<object id="701">
+		<flags value="0" />
+		<texture path="sfrendb.txd" />
+		<collision type="autogenerate" />
+		<model path="sfrendb.dff" distance="350" />
+	</object>
+	<object id="702">
+		<flags value="0" />
+		<texture path="sfrenda.txd" />
+		<collision type="autogenerate" />
+		<model path="sfrenda.dff" distance="350" />
+	</object>
+	<object id="703">
+		<flags value="0" />
+		<texture path="CSken.txd" />
+		<collision type="autogenerate" />
+		<model path="CSken.dff" distance="350" />
+	</object>
+	<object id="704">
+		<flags value="0" />
+		<texture path="CSplay.txd" />
+		<collision type="autogenerate" />
+		<model path="CSplay.dff" distance="350" />
+	</object>
+	<object id="705">
+		<flags value="0" />
+		<texture path="sgoona.txd" />
+		<collision type="autogenerate" />
+		<model path="sgoona.dff" distance="350" />
+	</object>
+	<object id="706">
+		<flags value="0" />
+		<texture path="sgoonb.txd" />
+		<collision type="autogenerate" />
+		<model path="sgoonb.dff" distance="350" />
+	</object>
+	<object id="707">
+		<flags value="0" />
+		<texture path="airplan.txd" />
+		<collision type="autogenerate" />
+		<model path="airplan.dff" distance="600" />
+	</object>
+	<object id="708">
+		<flags value="0" />
+		<texture path="merced.txd" />
+		<collision type="autogenerate" />
+		<model path="merced.dff" distance="350" />
+	</object>
+	<object id="709">
+		<flags value="0" />
+		<texture path="brfcase.txd" />
+		<collision type="autogenerate" />
+		<model path="brfcase.dff" distance="350" />
+	</object>
+</objectlist>
