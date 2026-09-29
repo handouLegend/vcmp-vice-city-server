@@ -11,20 +11,14 @@ function intro_quat(yaw)
 }
 
 // ==================== THE BISECT SWITCH (ONE line, see _docs/RUN-HISTORY.md) ====================   [moved: INTRO-CODE-NOTES.md block 2]
-INTRO_NO_PASSENGER_RECORDS <- false;
 
 // ==================== THE AUDIO SWITCH (ONE line, see _docs/AUDIO-CUTOFF.md) ====================   [moved: INTRO-CODE-NOTES.md block 3]
-INTRO_AUDIO_CHUNKED <- false;
 
 // ==================== THE AUDIO ROOT-CAUSE EXPERIMENTS (ONE line each) ====================   [moved: INTRO-CODE-NOTES.md block 4]
-INTRO_AUDIO_WORLD_PATH <- false;
 
 // ---- EXPERIMENT B: the same bytes under a DIFFERENT id --------------------------------------...   [moved: INTRO-CODE-NOTES.md block 5]
-intro_airport_audio_id <- 50003;         // 50003 = original (SET); 50030 = the identical-bytes copy (B, disproved)
-intro_airport_audio_b  <- 50030;         // (the other one, kept so the swap is one line)
 
 // ---- EXPERIMENT C: the CHANNEL/POOL hypothesis, tested by making the pieces OVERLAP ---------...   [moved: INTRO-CODE-NOTES.md block 6]
-INTRO_AUDIO_SHIFT_MS <- 0;
 
 // ---- EXPERIMENT D: PIN THE HIDDEN PLAYER BODY (the ambience / audio-zone hypothesis) --------...   [moved: INTRO-CODE-NOTES.md block 7]
 INTRO_FIXED_BODY <- true;
@@ -262,24 +256,6 @@ foreach(mv in intro_airport_movers){
 }
 
 // ---------------------------------------------------------------- the airport's audio, cut int...   [moved: INTRO-CODE-NOTES.md block 19]
-intro_airport_chunks <- [
-    { tms =     0, id = 50010 },   // s50010_airport01.mp3  0.000 s + 2.016 s
-    { tms =  2016, id = 50011 },   // s50011_airport02.mp3  2.016 s + 2.016 s
-    { tms =  4032, id = 50012 },   // s50012_airport03.mp3  4.032 s + 2.016 s
-    { tms =  6048, id = 50013 },   // s50013_airport04.mp3  6.048 s + 2.016 s
-    { tms =  8064, id = 50014 },   // s50014_airport05.mp3  8.064 s + 2.016 s
-    { tms = 10080, id = 50015 },   // s50015_airport06.mp3 10.080 s + 2.016 s
-    { tms = 12096, id = 50016 },   // s50016_airport07.mp3 12.096 s + 2.016 s
-    { tms = 14112, id = 50017 },   // s50017_airport08.mp3 14.112 s + 2.016 s
-    { tms = 16128, id = 50018 },   // s50018_airport09.mp3 16.128 s + 2.016 s
-    { tms = 18144, id = 50019 },   // s50019_airport10.mp3 18.144 s + 2.016 s
-    { tms = 20160, id = 50020 },   // s50020_airport11.mp3 20.160 s + 2.016 s
-    { tms = 22176, id = 50021 },   // s50021_airport12.mp3 22.176 s + 2.016 s
-    { tms = 24192, id = 50022 },   // s50022_airport13.mp3 24.192 s + 2.016 s
-    { tms = 26208, id = 50023 },   // s50023_airport14.mp3 26.208 s + 2.016 s
-    { tms = 28224, id = 50024 },   // s50024_airport15.mp3 28.224 s + 2.016 s
-    { tms = 30240, id = 50025 }    // s50025_airport16.mp3 30.240 s + 1.404 s (the file ends at 31.644)
-];
 
 // ---------------------------------------------------------------- the acts, in order   [moved: INTRO-CODE-NOTES.md block 20]
 intro_acts <- [
@@ -316,7 +292,6 @@ intro_acts <- [
         cardHold = 0,
         cardFade = 800,
         audio    = 50003,               // store/sounds/s50003_airport.mp3 (the original int_m.mp3)
-        audioChunks = intro_airport_chunks   // ... cut into 16 frame-exact pieces, see INTRO_AUDIO_CHUNKED
     }
 ];
 
@@ -351,12 +326,11 @@ function mission_intro_begin(p)
     intro_run[p.ID] <- {
         act = -1,
         t0 = 0, shot = -1, shotStart = 0.0, shotLen = 1.0,
-        sub = 0, audio = false, cam = [], movers = [], car = null, probes = 0,
-        beside = false, boardTry = -99.0, putTry = -99.0, reported = 0,
+        sub = 0, audio = false, cam = [], movers = [], car = null, 
+        beside = false, boardTry = -99.0, putTry = -99.0, 
         // the audio pieces (INTRO_AUDIO_CHUNKED): `ac` = how many have been issued, `aprobe` = the act
         // second of the last once-a-second [AUDIO] probe line (starts at -1 so the probe fires at t = 0)
         ac = 0, aprobe = -1.0,
-        gateTold = false,       // the one-shot `[CAR] gate:` line (the weapon gate's own arithmetic)
         ox = 0.0, oy = 0.0, oz = 0.0
     };
     // ------------------------------------------------------ CLEAR THE ENGINE'S STALE "ALREADY PUT IN"   [moved: INTRO-CODE-NOTES.md block 21]
@@ -366,9 +340,6 @@ function mission_intro_begin(p)
                 try { putInOk.rawdelete(c.name + "_" + p.ID); } catch(e) {}
     }
     print("[MISSION] intro begins at act "+act+" ("+intro_acts[act].name+")");
-    print("[MISSION] BISECT: passenger recordings "
-        + (INTRO_NO_PASSENGER_RECORDS ? "DISABLED - the three men stand still and send nothing, Ken alone drives"
-                                       : "enabled - tomy/ga/gb real recordings + @loop: passenger files"));
     intro_act_begin(p, act);
     return true;
 }
@@ -384,7 +355,6 @@ function intro_act_begin(p, idx)
     qClear(p);
 
     r.audio = false; r.sub = 0; r.shot = -1;
-    r.ac = 0; r.aprobe = -1.0;
     r.cam = []; r.movers = [];
 
     // the pre-roll is a start stamp pushed into the future: t clamps at zero, so the first shot is
@@ -450,10 +420,8 @@ function intro_act_begin(p, idx)
             if(c.rawin("quiet")) pose = pose + "@" + c.quiet.tostring();
             // A passenger script also needs the NAME of the recording it replays, and the pose string is   [moved: INTRO-CODE-NOTES.md block 22]
             if(c.rawin("real")) pose = pose + "@real:" + c.real.tointeger().tostring();
-            if(!INTRO_NO_PASSENGER_RECORDS){
                 if(c.rawin("ride")) pose = pose + "@ride:" + c.ride;
                 if(c.rawin("loop")) pose = pose + "@loop:" + c.loop;
-            }
             local cpos = Vector(c.pos.x + r.ox, c.pos.y + r.oy, c.pos.z + r.oz);
             local clook = Vector(cx + r.ox, cy + r.oy, cz + r.oz);
             // an act may name its own npc script for an actor: the driver replays a recording
@@ -472,7 +440,6 @@ function intro_act_begin(p, idx)
 // the put landing at act 3.0 the drive-away has 7.7 s of act left: 24 s and 29 s bracket it and 31 s
 // is the last tick that is still inside the act (the car's endpoint is x = -1631.46, the parked
 // position is x = -1591.56, so 17-40 m is the whole question). Delete with the rest of the debugging.
-intro_probe_at <- [24.0, 29.0, 31.0];
 
 // Is the man REALLY in a vehicle as far as the ENGINE is concerned? Two independent handles are...   [moved: INTRO-CODE-NOTES.md block 23]
 function intro_inCar(nm)
@@ -499,7 +466,6 @@ intro_realrec_ms <- {
 KEN_REAL_FILE_NAME <- "ken2";        // keep in sync with npcscripts/ken_driver.nut's KEN_REAL_FILE
 
 // HOW LONG AFTER AN ACTOR SPAWNS THE ACT CLOCK IS WHEN HIS RECORDING IS ACCEPTED.   [moved: INTRO-CODE-NOTES.md block 26]
-intro_spawn_lag <- 0.4;
 
 // THE GATE'S OWN SPAWN LAG, and it is 0.0 on purpose: the one value that cannot be wrong in the   [moved: INTRO-CODE-NOTES.md block 27]
 INTRO_GATE_LAG <- 0.0;
@@ -525,22 +491,6 @@ function intro_realrec_playing(name, t)
 }
 
 // The world form of the sound call, for EXPERIMENT A (see INTRO_AUDIO_WORLD_PATH at the top of ...   [moved: INTRO-CODE-NOTES.md block 29]
-function intro_play_world(p, id)
-{
-    local wd = 0;
-    local ok = "ok";
-    try { wd = p.World; } catch(e0) { ok = "world unreadable: " + e0; }
-    try {
-        PlaySoundForWorld(wd, id);
-    } catch(e1) {
-        print("[AUDIO] *** PlaySoundForWorld(" + wd + ", " + id + ") THREW: " + e1
-            + " - the world form does not exist in this build after all; experiment A is dead, "
-            + "set INTRO_AUDIO_WORLD_PATH back to false");
-        return false;
-    }
-    print("[AUDIO] PlaySoundForWorld(world " + wd + ", id " + id + ") called for " + p.Name + " (" + ok + ")");
-    return true;
-}
 
 function mission_intro_tick(p)
 {
@@ -557,83 +507,9 @@ function mission_intro_tick(p)
     local t   = dt / 1000.0;
 
     // ---------------------------------------------------------------- the act's audio   [moved: INTRO-CODE-NOTES.md block 30]
-    if(raw >= 0){
-        local at = dt / 1000.0;                 // == t here (raw >= 0), used only by the audio lines
-
-        // THE GATE. Everything the audio experiments can reach lives inside `isAirport`; the `else`
-        // branch below is the original, act-agnostic path (one `qSound` of the act's own `a.audio`).
-        local isAirport = (r.act == 1);
-
-        // Which id this round uses (experiment B): the same bytes under another id, or the original.
-        // AIRPORT ONLY - this is the line that used to hijack act 0.
-        local aid = isAirport ? intro_airport_audio_id : a.audio;
-        // Experiment A: the world form of the call instead of the per-player one. `PlaySoundForWorld(
-        // worldID, soundID)` is this build's shape - TWO arguments, no position (the 3-argument
-        // PlaySound(world, sound, pos) does not exist in rel006, see _docs/VCMP-API-NOTES.md). Called
-        // straight from here because Main.nut is not ours to change; only the single-file path uses it.
-        // AIRPORT ONLY: the office act has never been run through this path and must not be.
-        local useWorld = isAirport && INTRO_AUDIO_WORLD_PATH;
-
-        if(isAirport && INTRO_AUDIO_CHUNKED && a.rawin("audioChunks")){
-            // One `[AUDIO] piece` line per piece, so the log says exactly which piece was in flight when
-            // the user reports the dialogue stopping. Scheduled on the ACT clock, never on the previous
-            // piece ending: a piece whose stream dies must not delay the ones behind it.
-            // `INTRO_AUDIO_SHIFT_MS` (experiment C) moves every schedule by that many ms: + = the pieces
-            // overlap (busy-channel probe), - = a real gap between them.
-            local ck = a.audioChunks;
-            while(r.ac < ck.len() && dt >= ck[r.ac].tms - INTRO_AUDIO_SHIFT_MS){
-                if(useWorld) intro_play_world(p, ck[r.ac].id);
-                else         qSound(p, ck[r.ac].id);
-                print("[AUDIO] piece " + (r.ac + 1) + "/" + ck.len() + " id " + ck[r.ac].id + " issued for "
-                    + p.Name + " at act " + at + " s (piece clock " + (ck[r.ac].tms / 1000.0)
-                    + " s, shift " + INTRO_AUDIO_SHIFT_MS + " ms, next in "
-                    + ((r.ac + 1 < ck.len()) ? (ck[r.ac + 1].tms - ck[r.ac].tms) : 0) + " ms)");
-                r.ac++;
-            }
-            if(!r.audio){
-                r.audio = true;
-                print("[AUDIO] act " + r.act + " audio = " + ck.len() + " frame exact pieces 50010.."
-                    + (ck[0].id + ck.len() - 1) + " of s50003_airport.mp3 (INTRO_AUDIO_CHUNKED = true); "
-                    + "a client stream that dies costs at most the piece it was playing");
-            }
-        }else if(!r.audio){
-            if(useWorld) intro_play_world(p, aid);
-            else         qSound(p, aid);
-            r.audio = true;
-            print("[AUDIO] sound " + aid + " issued for " + p.Name + " at act clock 0.000 (act " + r.act
-                + ") via " + (useWorld ? "PlaySoundForWorld" : "PlaySoundForPlayer")
-                + "; the server never touches this sound again (no StopSound exists in this build)"
-                + (a.rawin("audioChunks") ? " [single file path: INTRO_AUDIO_CHUNKED = false]" : ""));
-            print("[MISSION] AUDIO EXPERIMENT: path=" + (useWorld ? "WORLD" : "PLAYER")
-                + ", id=" + aid + (aid == intro_airport_audio_b ? " (the identical-bytes copy)" : " (original)")
-                + ", chunked=" + (INTRO_AUDIO_CHUNKED ? "yes" : "no")
-                + ", shift=" + INTRO_AUDIO_SHIFT_MS + " ms"
-                + ", body=" + ((INTRO_FIXED_BODY && isAirport) ? ("FIXED " + fmtPos(INTRO_FIXED_BODY_POS))
-                                                               : "cam-following")
-                + (isAirport ? "  <- this round tests ONLY these; everything else is unchanged"
-                             : "  <- act " + r.act + " (" + a.name + "): the experiments are AIRPORT ONLY,"
-                               + " this is the act's own a.audio = " + a.audio));
-        }
-
-        // THE ONE-RUN CORRELATION LINE, once a second for as long as the act lasts. The server cannot ask
-        // the client whether the sound is still playing (there is no such API and no reply channel), so it
-        // reports what it CAN see at each second of the same clock: how many pieces have been issued, which
-        // one is next, and the player's own world/body/state. Read it against what the user heard.
-        if(at - r.aprobe >= 1.0){
-            r.aprobe = at;
-            local chunked = isAirport && INTRO_AUDIO_CHUNKED && a.rawin("audioChunks");
-            local total = chunked ? a.audioChunks.len() : 1;
-            local sent  = chunked ? r.ac : (r.audio ? 1 : 0);
-            local nxt   = chunked ? "none" : (aid.tostring() + " (single file)");
-            if(chunked && r.ac < a.audioChunks.len()) nxt = a.audioChunks[r.ac].id.tostring();
-            local wd = "?", bd = "?", fz = "?", iv = "?";
-            try { wd = p.World.tostring(); } catch(e0) {}
-            try { bd = fmtPos(p.Pos); } catch(e1) {}
-            try { fz = p.Frozen ? "frozen" : "free"; } catch(e2) {}
-            try { iv = (p.Vehicle != null) ? ("inveh " + p.VehicleSlot) : "onfoot"; } catch(e3) {}
-            print("[AUDIO] t=" + at + " sent=" + sent + "/" + total + " next=" + nxt + " world=" + wd
-                + " body=" + bd + " " + fz + " " + iv);
-        }
+    if(raw >= 0 && !r.audio){
+        qSound(p, a.audio);
+        r.audio = true;
     }
 
     // objects on the move: straight line between their two track points over t0 .. t1
@@ -758,10 +634,6 @@ function mission_intro_tick(p)
 
     // TEMPORARY placement probe: two samples a few seconds apart, so it is visible whether the actors
     // are standing on something or still falling. Delete with the rest of the debugging.
-    if(r.probes < 2 && t > 2.0 + r.probes * 6.0){
-        r.probes++;
-        qProbe(p, cam, look);
-    }
 
     // The men with a `put` are put in BY THE SERVER, each at his own original time (the cast's
     // `put`/`seat`). It used to be "once per man and never re-sent, because `wasPutIn` remembers what the
@@ -787,50 +659,10 @@ function mission_intro_tick(p)
             // run: it prints, once, the window each real-recording actor is being excused for. If a run
             // ever shows an animation still being cut, compare the printed window with the act time the
             // log's other lines put the boarding at - the window must contain it.
-            if(!r.gateTold){
-                r.gateTold = true;
-                foreach(c in intro_airport_cast){
-                    if(!c.rawin("real")) continue;
-                    local f = c.rawin("ride") ? c.ride : KEN_REAL_FILE_NAME;
-                    // INTRO_GATE_LAG (0.0), NOT intro_spawn_lag: this printed window is the very window
-                    // `intro_realrec_playing` enforces, so the two MUST use the same number or the line
-                    // stops being evidence.
-                    local st = INTRO_GATE_LAG + (c.real / 1000.0);
-                    local en = st + (intro_realrec_ms.rawin(f) ? intro_realrec_ms[f] / 1000.0 : 0.0)
-                                  + INTRO_GETIN_MARGIN;
-                    print("[CAR] gate: " + c.name + " no weapon packet from act " + st + " to " + en
-                        + " (real " + c.real + " ms after spawn, file \"" + f + "\", gate-lag "
-                        + INTRO_GATE_LAG + " s [0 on purpose; measured spawn lag " + intro_spawn_lag
-                        + " s - see _docs/REAL-RECORDINGS.md 13.9], +" + INTRO_GETIN_MARGIN
-                        + " s get-in margin)");
-                }
-            }
             foreach(c in intro_airport_cast){
                 if(intro_realrec_playing(c.name, t)) continue;
                 if(intro_inCar(c.name + "_" + p.ID)) qWep(p, c.name + "_" + p.ID);
             }
-        }        // TEMPORARY: three lines (24 s, 29 s, 31 s) saying where the SERVER thinks each man is - his seat
-        // number, or 0 for on foot, or "gone" - AND WHERE THE CAR ITSELF IS. The actors' own prints go to   [moved: INTRO-CODE-NOTES.md block 37]
-        if(r.reported < 3 && t >= intro_probe_at[r.reported]){
-            r.reported++;
-            local line = "[CAR] t=" + t.tostring();
-            foreach(c in intro_airport_cast){
-                local np = FindPlayer(c.name + "_" + p.ID);
-                local v = "gone";
-                if(np != null){
-                    try { v = np.VehicleSlot.tostring() + (np.Vehicle != null ? "" : "(onfoot)"); }
-                    catch(e) { v = "?"; }
-                }
-                line = line + "  " + c.name + "=" + v;
-            }
-            // the car's own position: "from" = (-1591.560, -545.549, 14.6985); f(24.0)~0, f(29.0)~0.46
-            local cp = "?";
-            try {
-                local cv = state[p.ID].missionVeh;
-                if(cv == null) cp = "none";
-                else { local q = cv.Pos; cp = q.x + "," + q.y + "," + q.z; }
-            } catch(e) { cp = "unreadable:" + e; }
-            print(line + "  car=" + cp);
         }
     }
 }
