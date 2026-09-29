@@ -344,50 +344,6 @@ function onPlayerJoin( player )
 function onPlayerCommand(player,cmd,text)
 {
     print(player+": /"+cmd+" "+text);
-    if(cmd=="clear"){
-        if(state[player.ID].CP != null){ state[player.ID].CP.Remove(); state[player.ID].CP = null; }
-        MessagePlayer("[#00ff00]checkpoint cleared", player);
-    }
-    if(cmd=="here"){
-        if(state[player.ID].CP != null){ state[player.ID].CP.Remove(); }
-        state[player.ID].CP = CreateCheckpoint(player, player.UniqueWorld, false, player.Pos, ARGB(150, 255, 0, 255), 2);
-        print("[POS] checkpoint moved to "+player.Pos.x+", "+player.Pos.y+", "+player.Pos.z);
-    }
-    if(cmd=="m"){
-        // /m [mission] [act] - act is optional. No argument at all still starts the old
-        // ken_01_an_old_friend name (which mission_intro_begin forwards), exactly as before.
-        // Parsed the way /rec does it: no string.split() in this Squirrel, so cut the text by hand.
-        local txt = (text == null) ? "" : text;
-        local sp  = txt.find(" ");
-        local name = ((sp == null) ? txt : txt.slice(0, sp));
-        if(name == "") name = "ken_01_an_old_friend";
-
-        local actStr = (sp == null) ? "" : txt.slice(sp + 1);
-        local act    = null;                  // null = "use the mission's own first act"
-        if(actStr != ""){
-            // digits only: tointeger() would happily turn "abc" into 0 or throw; this way a typo is
-            // reported instead of silently starting act 0.
-            local m = actStr.find("[^0-9]");
-            if(m == null){
-                try { act = actStr.tointeger(); } catch(e) { act = null; }
-            }
-            if(act == null){
-                MessagePlayer("[#ff0000]bad act number: "+actStr+" - usage: /m <mission> [act], e.g. /m intro 1", player);
-                return;
-            }
-        }
-
-        // Hand the act over without knowing anything about missions: mission_intro_begin reads this
-        // one and deletes it (see the note at its definition), so it is set here and cleared in
-        // missionTick whether the mission used it or not.
-        if(act != null) getroottable()["missionStartAct"] <- act;
-        // ENTER HIS OWN WORLD FIRST, exactly as /home does. A mission runs in whatever world the player
-        // is in when it starts (missionTick records `missionWorld = p.World`), so starting it from world 0
-        // played the whole scene in world 0 - where the server's own static vehicles live, which is how
-        // he noticed ("地图上刷的车，这车只会在世界零刷"). /home always did this; /m did not.
-        player.World = player.UniqueWorld;
-        startMission(player, name);
-    }
     if(cmd=="heal"){
         if(player.Health>=100){
             ClientMessage("you are already at full health", player, 255, 0, 0);
@@ -501,130 +457,6 @@ function onPlayerCommand(player,cmd,text)
                 state[player.ID].tempVeh.Delete();
             }
             state[player.ID].tempVeh<-CreateVehicle(text.tointeger(),player.World,player.Pos.x+3,player.Pos.y+3,player.Pos.z+1,player.Angle,68,39);
-        }
-    }else if(cmd=="rec"){
-        // /rec <name> [driver|all]  - record THIS player so the npc plugin can replay him.
-        // "driver": be IN the car and driving before this command - the plugin stops the recording the
-        //           moment you leave the vehicle (habi [Tutorial: NPC] #3).
-        // "all":    stand on foot, type this, then walk/board/drive - that file also carries the
-        //           vehicle-request frame, which is what the mission's car needs (recorder type 3).
-        // The exact call and its evidence are in the note above the rec* globals.
-        // No string.split() in this Squirrel (see AdminJson.nut's note): parse "<name> [type]" by hand.
-        local txt  = (text == null) ? "" : text;
-        local sp   = txt.find(" ");
-        local name = (sp == null) ? txt : txt.slice(0, sp);
-        local rest = (sp == null) ? "" : txt.slice(sp + 1);
-        local restLow = rest;
-        try { restLow = rest.tolower(); } catch(e0) {}
-        if(name == ""){
-            MessagePlayer("[#ff0000]usage: /rec <name> [driver|all]  (then drive, then /recstop)", player);
-        }else{
-            // Keep it a plain file name: the plugin makes "<name>.rec" out of it.
-            local okName = true;
-            try { if(name.len() > 40) okName = false; } catch(e1) {}   // .len() may be missing in this lib
-            foreach(bad in [".", "/", "\\", ":", "*", "?", "\"", "<", ">", "|", " "])
-                if(name.find(bad) != null) okName = false;
-            local typeId = recTypeDriver;
-            if(restLow == "all") typeId = recTypeAll;
-
-            if(!okName){
-                MessagePlayer("[#ff0000]bad name: use letters, digits, _ or - only (it becomes <name>.rec)", player);
-            }else if(recIsOn(player) == true){
-                MessagePlayer("[#ffff00]already recording as "+recName+" - /recstop first", player);
-                print("[REC] "+player.Name+" is already recording ("+recName+")");
-            }else{
-                // One documented call. See the api note above the rec* globals.
-                local r = recStd(player, name, typeId);
-                print("[REC] "+player.Name+" /rec "+name+" (type "+typeId+", id "+player.ID+") "
-                    + "StartRecordingPlayerData -> "+r);
-                if(r == "ok" || r == "unverifiable"){
-                    recShape = "StartRecordingPlayerData(player.ID, rectype, name, flags)";
-                    recWho = player;
-                    recName = name;
-                }
-                if(r == "ok"){
-                    MessagePlayer("[#00ff00]recording started as [#ffff00]"+name
-                        + "[#00ff00] (type "+typeId+", id "+player.ID+") - drive now, /recstop when done", player);
-                }else if(r == "unverifiable"){
-                    MessagePlayer("[#ffff00]recording call accepted as "+name
-                        +" but this build answers nothing for IsPlayerRecording", player);
-                }else{
-                    MessagePlayer("[#ff0000]recording call was rejected - see server_log.txt ([REC] lines)", player);
-                }
-                // Where the file goes. The npc plugin writes into the folder named by `recdir` in
-                // server.cfg: unset or 1 -> <server folder>\recordings\, = 2 -> npcscripts\recordings\.
-                // Playback only ever looks in npcscripts\recordings\, so a file from `recordings\`
-                // has to be moved there before an npc can replay it.
-                print("[REC] expected file: <server>\\recordings\\"+name+".rec (server.cfg has no recdir"
-                    + " key -> default 1); with `recdir 2` in server.cfg it would already land in "
-                    + "npcscripts\\recordings\\. Playback reads only npcscripts\\recordings\\, so move it"
-                    + " there if it lands in recordings\\. Check the header: "
-                    + "node -e \"const b=require('fs').readFileSync('recordings/"+name+".rec');"
-                    + "console.log('version',b.readUInt32LE(0),'type',b.readUInt32LE(4),'flags',b.readUInt32LE(8),'bytes',b.length)\""
-                    + " - type must be "+typeId+".");
-            }
-        }
-    }else if(cmd=="recstop"){
-        local on = recIsOn(player);
-        local wasName = recName;
-        local stop = recStop(player);
-        print("[REC] "+player.Name+" /recstop: "+stop+" (IsPlayerRecording was "+on+")");
-        MessagePlayer("[#00ff00]"+stop+" - "+wasName+".rec is in recordings\\ (or npcscripts\\recordings\\"
-            +" with recdir 2); move it to npcscripts\\recordings\\ to replay it", player);
-        recShape = "";
-        recWho = null;
-        recName = "";
-    }else if(cmd=="refcar"){
-        // TEMPORARY reference car: an Admiral (175) dropped at the EXACT pose the mission's own car is
-        // parked in, so the spots beside its seats can be measured in the open world (a custom object only
-        // exists during the scene, so there is nothing else to measure against).
-        // It TRACKS the mission's car: the pose (and model/colours/heading) is read out of the mission's own
-        // table `intro_airport_car` (scripts/missions/intro.nut, dofile'd into the root table) instead of
-        // being copied here, because the mission shifts the whole car-and-men cluster 1.5 m south
-        // (intro_airport_south) AFTER writing that table. A copy of the pre-shift numbers therefore put this
-        // reference car 1.5 m NORTH of the real one, and the walking routes recorded against it were
-        // measured beside the wrong car. Reading the table means the two can never drift apart again.
-        // /refcar again removes it.
-        if("refVeh" in state[player.ID] && state[player.ID].refVeh != null){
-            state[player.ID].refVeh.Delete();
-            state[player.ID].refVeh = null;
-            MessagePlayer("[#00ff00]refcar removed",player);
-        }else{
-            // The pose to use. These are the fallback numbers, i.e. exactly what this command used to
-            // hard-code (the pre-1.5 m-shift pose); they are only used if the mission's table is not
-            // readable, which is reported below.
-            local pose = { x = -1591.560, y = -544.049, z = 14.6985, angle = 1.5707963,
-                           model = 175, c1 = 68, c2 = 39 };
-            // Why the fallback was used, or null when the mission's table was read.
-            local why = null;
-            local carTag = getroottable().rawget("intro_airport_car");
-            if(carTag == null){
-                why = "intro_airport_car is not in the root table (mission file not loaded)";
-            }else{
-                // Read every field BEFORE writing any of them, so a half-readable table cannot leave the
-                // fallback pose with a couple of values swapped in from the mission. A `from` that is not a
-                // Vector has no .x and throws on the first read, which is the `from is not a Vector` case.
-                try {
-                    local from = carTag.from;
-                    local fx = from.x, fy = from.y, fz = from.z;     // throws unless `from` is a Vector
-                    local fa = carTag.angle, fm = carTag.model, fc1 = carTag.c1, fc2 = carTag.c2;
-                    pose.x = fx; pose.y = fy; pose.z = fz;
-                    pose.angle = fa; pose.model = fm; pose.c1 = fc1; pose.c2 = fc2;
-                } catch(e) {
-                    why = "intro_airport_car.from is not a Vector / the table is incomplete ("+e+")";
-                }
-            }
-            if(why != null) print("[REFCAR] fallback pose used: "+why);
-            // CreateVehicle takes the heading in RADIANS (player.Angle is in degrees, which is why the
-            // /car command above spawns cars at an odd angle). The table's `angle` is radians too: due
-            // west = pi/2. Never convert it to degrees here.
-            state[player.ID].refVeh <- CreateVehicle(pose.model,player.World,pose.x,pose.y,pose.z,pose.angle,pose.c1,pose.c2);
-            // What was actually spawned, so the console shows the numbers any measurement is taken against.
-            print("[REFCAR] "+player.Name+" /refcar: admiral at "+fmtPos(Vector(pose.x,pose.y,pose.z))
-                +" angle "+format("%.6f",pose.angle)+" ("+(why == null ? "intro_airport_car" : "FALLBACK")+")");
-            MessagePlayer("[#00ff00]refcar: Admiral at "+fmtPos(Vector(pose.x,pose.y,pose.z))
-                +" facing WEST (pi/2 rad), the pose the mission's car is parked in"
-                +(why == null ? "" : " [FALLBACK: "+why+"]"),player);
         }
     }else if(cmd=="uid"){
         MessagePlayer("[#00ff00]your UID: [#ffff00]"+GetUid(player),player);
@@ -753,16 +585,8 @@ function onPlayerCommand(player,cmd,text)
         }
     }else if(cmd=="home")
     {
-        // Your own world, then the mission plays there with your own set of actors. The mission is
-        // started through the queue, not on the spot: command handlers run on a deep stack and the
-        // engine calls a mission makes on its first frame do not like that.
         player.World = player.UniqueWorld;
         startMission(player, "intro");
-    }else if(cmd=="depthtest")
-    {
-        // TEMPORARY: measures how deep the script stack can get before the overloaded engine functions
-        // stop resolving. Delete this branch and depthProbe() once the number is known.
-        depthProbe(1, player);
     }else{
         ClientMessage("The command "+cmd+" is not available, please type /help for a list of commands", player, 255, 0, 0);
     }
@@ -819,9 +643,6 @@ function onPlayerChat( player, message )
  }
 }
 function onPlayerPart(player,reason){
-    // Everything that must happen when a player leaves, in ONE function. Squirrel silently replaces
-    // an earlier definition with a later one of the same name, and a second onPlayerPart used to sit
-    // further down this file: it quietly killed saveDB(), so accounts never persisted.
     if(player.ID in state)
     {
         if(state[player.ID].evade)
@@ -831,9 +652,6 @@ function onPlayerPart(player,reason){
         if("tempVeh" in state[player.ID] && state[player.ID].tempVeh != null){
             state[player.ID].tempVeh.Delete();
         }
-
-        // A viewer leaving mid mission takes his own actors, objects and room with him; other viewers
-        // have their own sets, so this must never be a blanket KickAllNPC(). Main owns all of it.
         stopMission(player);
     }
     if(freecam.rawin(player.ID)) freecam.rawset(player.ID, null);

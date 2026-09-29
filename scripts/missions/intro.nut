@@ -182,7 +182,7 @@ intro_airport_movers <- [
 
 // Ken's car is a REAL VEHICLE, created with CreateVehicle - not a custom object. That was a mis...   [moved: INTRO-CODE-NOTES.md block 16]
 intro_airport_car <- {
-    model = 175, c1 = 68, c2 = 39,
+    model = 175, c1 = 84, c2 = 84,
     from  = Vector(-1591.560, -544.049, 14.6985),
     to    = Vector(-1631.290, -545.000, 14.6985),
     angle = 1.5707963,
